@@ -4,27 +4,17 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
 import { Pencil, Trash2 } from 'lucide-react';
-
-interface Infringement {
-  id: string;
-  kartNumber: string;
-  turn: string;
-  observer: string;
-  infringement: string;
-  penaltyDescription: string;
-  penaltyApplied: boolean;
-  timestamp: Date;
-}
+import type { InfringementRecord } from '../api';
 
 interface InfringementLogProps {
-  infringements: Infringement[];
-  onEdit: (infringement: Infringement) => void;
-  onDelete: (id: string) => void;
+  infringements: InfringementRecord[];
+  onEdit: (infringement: InfringementRecord) => void;
+  onDelete: (id: number) => void;
 }
 
 export function InfringementLog({ infringements, onEdit, onDelete }: InfringementLogProps) {
-  const formatTime = (date: Date) => {
-    return new Date(date).toLocaleTimeString('en-US', {
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
@@ -60,19 +50,23 @@ export function InfringementLog({ infringements, onEdit, onDelete }: Infringemen
                 </TableRow>
               ) : (
                 infringements.map((inf) => {
+                  const penaltyApplied =
+                    inf.penalty_due === 'No' && Boolean(inf.penalty_taken);
                   return (
                     <TableRow key={inf.id}>
                       <TableCell>{formatTime(inf.timestamp)}</TableCell>
-                      <TableCell>{inf.kartNumber}</TableCell>
-                      <TableCell>{inf.turn}</TableCell>
-                      <TableCell>{inf.infringement}</TableCell>
-                      <TableCell>{inf.penaltyDescription}</TableCell>
-                      <TableCell>{inf.observer}</TableCell>
+                      <TableCell>{inf.kart_number}</TableCell>
+                      <TableCell>{inf.turn_number ?? '—'}</TableCell>
+                      <TableCell>{inf.description}</TableCell>
+                      <TableCell>{inf.penalty_description ?? '—'}</TableCell>
+                      <TableCell>{inf.observer ?? '—'}</TableCell>
                       <TableCell>
-                        {inf.penaltyApplied ? (
+                        {penaltyApplied ? (
                           <Badge variant="destructive">Applied</Badge>
                         ) : (
-                          <Badge variant="outline">Pending</Badge>
+                          <Badge variant="outline">
+                            {inf.penalty_due === 'Yes' ? 'Pending' : 'Cleared'}
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell>

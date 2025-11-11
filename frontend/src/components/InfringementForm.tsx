@@ -4,17 +4,10 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import type { CreateInfringementPayload } from '../api';
 
 interface InfringementFormProps {
-  onSubmit: (infringement: {
-    kartNumber: string;
-    turn: string;
-    observer: string;
-    infringement: string;
-    penaltyDescription: string;
-    penaltyApplied: boolean;
-    timestamp: Date;
-  }) => void;
+  onSubmit: (payload: CreateInfringementPayload) => Promise<void> | void;
 }
 
 export function InfringementForm({ onSubmit }: InfringementFormProps) {
@@ -23,30 +16,41 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
   const [observer, setObserver] = useState('');
   const [infringement, setInfringement] = useState('');
   const [penaltyDescription, setPenaltyDescription] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!kartNumber || !turn || !observer || !infringement || !penaltyDescription) {
       return;
     }
 
-    onSubmit({
-      kartNumber,
-      turn,
-      observer,
-      infringement,
-      penaltyDescription,
-      penaltyApplied: false,
-      timestamp: new Date(),
-    });
+    const parsedKart = Number(kartNumber);
+    const turnNumber = turn === '' ? null : Number(turn);
 
-    // Reset form
-    setKartNumber('');
-    setTurn('');
-    setObserver('');
-    setInfringement('');
-    setPenaltyDescription('');
+    if (!Number.isFinite(parsedKart) || (turnNumber !== null && !Number.isFinite(turnNumber))) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await onSubmit({
+        kart_number: parsedKart,
+        turn_number: turnNumber,
+        description: infringement,
+        observer,
+        penalty_description: penaltyDescription,
+        performed_by: observer,
+      });
+
+      setKartNumber('');
+      setTurn('');
+      setObserver('');
+      setInfringement('');
+      setPenaltyDescription('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -70,13 +74,13 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="turn">Turn</Label>
+              <Label htmlFor="turn">Turn Number</Label>
               <Input
                 id="turn"
-                type="text"
+                type="number"
                 value={turn}
                 onChange={(e) => setTurn(e.target.value)}
-                placeholder="e.g., Turn 3"
+                placeholder="e.g., 3"
                 required
               />
             </div>
@@ -101,14 +105,16 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
                 <SelectValue placeholder="Select infringement type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Track Limits">Track Limits</SelectItem>
-                <SelectItem value="Dangerous Driving">Dangerous Driving</SelectItem>
-                <SelectItem value="Blocking">Blocking</SelectItem>
-                <SelectItem value="Collision">Collision</SelectItem>
-                <SelectItem value="Unsafe Re-entry">Unsafe Re-entry</SelectItem>
-                <SelectItem value="Ignoring Flags">Ignoring Flags</SelectItem>
-                <SelectItem value="Pit Lane Speed">Pit Lane Speed</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
+                  <SelectItem value="White Line Infringement">White Line Infringement</SelectItem>
+                  <SelectItem value="Yellow Zone Infringement">Yellow Zone Infringement</SelectItem>
+                  <SelectItem value="Track Limits">Track Limits</SelectItem>
+                  <SelectItem value="Dangerous Driving">Dangerous Driving</SelectItem>
+                  <SelectItem value="Blocking">Blocking</SelectItem>
+                  <SelectItem value="Collision">Collision</SelectItem>
+                  <SelectItem value="Unsafe Re-entry">Unsafe Re-entry</SelectItem>
+                  <SelectItem value="Ignoring Flags">Ignoring Flags</SelectItem>
+                  <SelectItem value="Pit Lane Speed">Pit Lane Speed</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -132,7 +138,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
           </div>
 
           <Button type="submit" className="w-full">
-            Log Infringement
+            {isSubmitting ? 'Logging...' : 'Log Infringement'}
           </Button>
         </form>
       </CardContent>

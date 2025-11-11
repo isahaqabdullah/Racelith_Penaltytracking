@@ -10,23 +10,14 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-
-interface Infringement {
-  id: string;
-  kartNumber: string;
-  turn: string;
-  observer: string;
-  infringement: string;
-  penaltyDescription: string;
-  penaltyApplied: boolean;
-  timestamp: Date;
-}
+import type { UpdateInfringementPayload, InfringementRecord } from '../api';
 
 interface EditInfringementDialogProps {
-  infringement: Infringement | null;
+  infringement: InfringementRecord | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (infringement: Infringement) => void;
+  onSave: (id: number, payload: UpdateInfringementPayload) => Promise<void> | void;
+  isSaving?: boolean;
 }
 
 export function EditInfringementDialog({
@@ -34,6 +25,7 @@ export function EditInfringementDialog({
   open,
   onOpenChange,
   onSave,
+  isSaving = false,
 }: EditInfringementDialogProps) {
   const [kartNumber, setKartNumber] = useState('');
   const [turn, setTurn] = useState('');
@@ -44,29 +36,38 @@ export function EditInfringementDialog({
   // Update form values when infringement changes
   useEffect(() => {
     if (infringement) {
-      setKartNumber(infringement.kartNumber);
-      setTurn(infringement.turn);
-      setObserver(infringement.observer);
-      setInfringementType(infringement.infringement);
-      setPenaltyDescription(infringement.penaltyDescription);
+      setKartNumber(String(infringement.kart_number));
+      setTurn(
+        infringement.turn_number === null || infringement.turn_number === undefined
+          ? ''
+          : String(infringement.turn_number)
+      );
+      setObserver(infringement.observer ?? '');
+      setInfringementType(infringement.description);
+      setPenaltyDescription(infringement.penalty_description ?? '');
     }
   }, [infringement]);
 
-  const handleSave = () => {
-    if (!infringement || !kartNumber || !turn || !observer || !infringementType || !penaltyDescription) {
+  const handleSave = async () => {
+    if (!infringement || !kartNumber || !observer || !infringementType || !penaltyDescription) {
       return;
     }
 
-    const updatedInfringement: Infringement = {
-      ...infringement,
-      kartNumber,
-      turn,
-      observer,
-      infringement: infringementType,
-      penaltyDescription,
-    };
+    const parsedKart = Number(kartNumber);
+    const turnNumber = turn === '' ? null : Number(turn);
 
-    onSave(updatedInfringement);
+    if (!Number.isFinite(parsedKart) || (turnNumber !== null && !Number.isFinite(turnNumber))) {
+      return;
+    }
+
+    await onSave(infringement.id, {
+      kart_number: parsedKart,
+      turn_number: turnNumber,
+      description: infringementType,
+      observer,
+      penalty_description: penaltyDescription,
+      performed_by: observer,
+    });
     onOpenChange(false);
   };
 
@@ -99,13 +100,13 @@ export function EditInfringementDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-turn">Turn</Label>
+            <Label htmlFor="edit-turn">Turn Number</Label>
               <Input
                 id="edit-turn"
-                type="text"
+              type="number"
                 value={turn}
                 onChange={(e) => setTurn(e.target.value)}
-                placeholder="e.g., Turn 3"
+              placeholder="e.g., 3"
                 required
               />
             </div>
@@ -130,6 +131,8 @@ export function EditInfringementDialog({
                 <SelectValue placeholder="Select infringement type" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="White Line Infringement">White Line Infringement</SelectItem>
+                <SelectItem value="Yellow Zone Infringement">Yellow Zone Infringement</SelectItem>
                 <SelectItem value="Track Limits">Track Limits</SelectItem>
                 <SelectItem value="Dangerous Driving">Dangerous Driving</SelectItem>
                 <SelectItem value="Blocking">Blocking</SelectItem>
@@ -164,8 +167,8 @@ export function EditInfringementDialog({
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            Save Changes
+          <Button onClick={handleSave} disabled={isSaving}>
+            {isSaving ? 'Saving…' : 'Save Changes'}
           </Button>
         </DialogFooter>
       </DialogContent>

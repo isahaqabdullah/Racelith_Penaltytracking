@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import ProgrammingError, OperationalError
 from datetime import datetime, timezone
 from ..database import get_db
 from ..models import Infringement, InfringementHistory
@@ -8,6 +9,25 @@ from ..ws_manager import manager
 import json
 
 router = APIRouter(tags=["Penalties"])
+
+def handle_db_error(e: Exception):
+    """Handle database errors and return user-friendly HTTP exceptions."""
+    error_str = str(e).lower()
+    if "relation" in error_str and "does not exist" in error_str:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active session. Please create or load a session first."
+        )
+    elif "does not exist" in error_str:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Database error: Table does not exist. Please ensure a session is active."
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {str(e)}"
+        )
 
 @router.post("/apply/{kart_number}", response_model=ApplyPenaltyResponse)
 def apply_all_penalties(kart_number: int, payload: ApplyPenaltyRequest, db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
@@ -95,18 +115,26 @@ def apply_individual_penalty(infringement_id: int, payload: ApplyPenaltyRequest,
 
 @router.get("/pending", response_model=list[dict])
 def get_pending_penalties(db: Session = Depends(get_db)):
-    pending = db.query(Infringement).filter(
-        Infringement.penalty_due == "Yes"
-    ).order_by(Infringement.timestamp.asc()).all()
+    try:
+        pending = db.query(Infringement).filter(
+            Infringement.penalty_due == "Yes"
+        ).order_by(Infringement.timestamp.asc()).all()
 
-    return [
-        {
-            "id": inf.id,
-            "kart_number": inf.kart_number,
-            "description": inf.description,
-            "penalty_description": inf.penalty_description,
-            "timestamp": inf.timestamp.isoformat(),
-            "observer": inf.observer
-        }
-        for inf in pending
-    ]
+        return [
+            {
+                "id": inf.id,
+                "kart_number": inf.kart_number,
+                "description": inf.description,
+                "penalty_description": inf.penalty_description,
+                "timestamp": inf.timestamp.isoformat(),
+                "observer": inf.observer
+            }
+            for inf in pending
+        ]
+    except (ProgrammingError, OperationalError) as e:
+        handle_db_error(e)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching pending penalties: {str(e)}"
+        )

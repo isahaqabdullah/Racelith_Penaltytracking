@@ -12,9 +12,17 @@ app = FastAPI(title="Karting Infringement System", version="1.1")
 init_db()
 
 # --- CORS Middleware ---
+import os
+cors_origins = os.getenv("CORS_ORIGINS", "*")
+# Convert comma-separated string to list, or use ["*"] if "*" is specified
+if cors_origins == "*":
+    allow_origins = ["*"]
+else:
+    allow_origins = [origin.strip() for origin in cors_origins.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific domains
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
