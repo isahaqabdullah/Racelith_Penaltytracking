@@ -74,12 +74,13 @@ export function EditInfringementDialog({
   }, [infringement]);
 
   const handleSave = async () => {
-    if (!infringement || !kartNumber || !observer || !infringementType || !penaltyDescription) {
+    if (!infringement || !kartNumber || !infringementType || !penaltyDescription) {
       return;
     }
 
     const parsedKart = Number(kartNumber);
     const turnNumber = turn === '' ? null : Number(turn);
+    const observerValue = observer.trim() === '' ? null : observer.trim();
 
     if (!Number.isFinite(parsedKart) || (turnNumber !== null && !Number.isFinite(turnNumber))) {
       return;
@@ -89,9 +90,9 @@ export function EditInfringementDialog({
       kart_number: parsedKart,
       turn_number: turnNumber,
       description: infringementType,
-      observer,
+      observer: observerValue,
       penalty_description: penaltyDescription,
-      performed_by: observer,
+      performed_by: observerValue || 'Race Control Operator',
     });
     onOpenChange(false);
   };
@@ -132,7 +133,6 @@ export function EditInfringementDialog({
                 value={turn}
                 onChange={(e) => setTurn(e.target.value)}
               placeholder="e.g., 3"
-                required
               />
             </div>
           </div>
@@ -144,8 +144,7 @@ export function EditInfringementDialog({
               type="text"
               value={observer}
               onChange={(e) => setObserver(e.target.value)}
-              placeholder="Observer name"
-              required
+              placeholder="Observer name (optional)"
             />
           </div>
 

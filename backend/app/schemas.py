@@ -6,7 +6,7 @@ class InfringementCreate(BaseModel):
     kart_number: int
     turn_number: Optional[int] = None
     description: str
-    observer: str
+    observer: Optional[str] = None
     performed_by: str
     # Optional future fields
     penalty_due: Optional[str] = None

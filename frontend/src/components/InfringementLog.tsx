@@ -28,6 +28,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      hour12: false,
     });
   };
 
@@ -194,6 +195,8 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                     Boolean(inf.penalty_taken) &&
                     !isWarning;
 
+                  const isNoFurtherAction = inf.penalty_description === 'No further action';
+
                   let statusLabel = '';
                   let statusVariant: 'default' | 'destructive' | 'outline' | 'secondary' = 'outline';
                   let customStyle: CSSProperties | undefined = undefined;
@@ -209,6 +212,9 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                     statusLabel = 'Warning';
                     statusVariant = 'destructive';
                     customStyle = { backgroundColor: '#E9D502', color: '#ffffff', borderColor: 'transparent' };
+                  } else if (isNoFurtherAction && inf.penalty_due === 'No') {
+                    statusLabel = 'No action';
+                    statusVariant = 'outline';
                   } else if (inf.penalty_due === 'Yes') {
                     statusLabel = 'Pending';
                     statusVariant = 'destructive';

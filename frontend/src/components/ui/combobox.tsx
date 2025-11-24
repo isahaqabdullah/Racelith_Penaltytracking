@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Check } from "lucide-react";
 import { cn } from "./utils";
 import { Input } from "./input";
 import {
@@ -137,13 +136,11 @@ export function Combobox({
                       key={option}
                       value={option}
                       onSelect={() => handleSelect(option)}
+                      className={cn(
+                        "cursor-pointer transition-colors",
+                        value === option && "bg-accent"
+                      )}
                     >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          value === option ? "opacity-100" : "opacity-0"
-                        )}
-                      />
                       {option}
                     </CommandItem>
                   ))

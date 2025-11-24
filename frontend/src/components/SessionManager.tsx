@@ -262,6 +262,7 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
+        hour12: false,
       });
     } catch {
       return dateString;

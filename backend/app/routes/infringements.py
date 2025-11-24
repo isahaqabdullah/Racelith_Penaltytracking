@@ -53,7 +53,11 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
             incoming_penalty = (payload.penalty_description or "").strip()
             if incoming_penalty and incoming_penalty.lower() != "warning":
                 warning_count = 1
-                penalty_due = "Yes"
+                # "No further action" means no penalty is due
+                if incoming_penalty.lower() == "no further action":
+                    penalty_due = "No"
+                else:
+                    penalty_due = "Yes"
                 penalty_description = incoming_penalty
             else:
                 # Warning path: special accumulation (180 min expiry, 3 warnings = penalty)
@@ -76,8 +80,13 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
             # All other infringements (yellow zone, generic, etc.): use penalty_description from payload
             warning_count = 1
             if payload.penalty_description:
-                penalty_due = "Yes"
-                penalty_description = payload.penalty_description
+                # "No further action" means no penalty is due
+                if payload.penalty_description.strip().lower() == "no further action":
+                    penalty_due = "No"
+                    penalty_description = payload.penalty_description
+                else:
+                    penalty_due = "Yes"
+                    penalty_description = payload.penalty_description
             else:
                 penalty_due = "No"
                 penalty_description = None
@@ -225,8 +234,13 @@ def update_infringement(
             # All other infringements (yellow zone, generic, etc.): use penalty_description from payload
             warning_count = 1
             if payload.penalty_description:
-                penalty_due = "Yes"
-                penalty_description = payload.penalty_description
+                # "No further action" means no penalty is due
+                if payload.penalty_description.strip().lower() == "no further action":
+                    penalty_due = "No"
+                    penalty_description = payload.penalty_description
+                else:
+                    penalty_due = "Yes"
+                    penalty_description = payload.penalty_description
             else:
                 penalty_due = "No"
                 penalty_description = None

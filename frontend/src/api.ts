@@ -72,7 +72,7 @@ export interface CreateInfringementPayload {
   kart_number: number;
   turn_number?: number | null;
   description: string;
-  observer: string;
+  observer?: string | null;
   performed_by: string;
   penalty_description?: string | null;
 }

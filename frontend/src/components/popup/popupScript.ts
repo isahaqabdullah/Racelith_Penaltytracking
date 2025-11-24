@@ -18,7 +18,8 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     return new Date(timestamp).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
-      second: "2-digit"
+      second: "2-digit",
+      hour12: false
     });
   }
 
@@ -35,10 +36,12 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
   function getStatus(inf) {
     const isWarning = inf.penalty_description === "Warning";
     const applied = inf.penalty_due === "No" && inf.penalty_taken && !isWarning;
+    const isNoFurtherAction = inf.penalty_description === "No further action";
     
     if (applied) return "Applied";
     if (isExpired(inf)) return "Expired";
     if (isWarning) return "Warning";
+    if (isNoFurtherAction && inf.penalty_due === "No") return "No action";
     if (inf.penalty_due === "Yes") return "Pending";
     return "Cleared";
   }

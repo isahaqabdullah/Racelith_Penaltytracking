@@ -20,6 +20,7 @@ export function PendingPenalties({
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      hour12: false,
     });
   };
 
@@ -44,7 +45,7 @@ export function PendingPenalties({
                 <TableHead className="sticky left-[90px] z-20 bg-card border-r pr-4">
                   Kart #
                 </TableHead>
-                <TableHead className="text-right">Action</TableHead>
+                <TableHead className="text-center pr-4">Action</TableHead>
                 <TableHead>Infringement</TableHead>
                 <TableHead>Penalty</TableHead>
               </TableRow>
@@ -81,7 +82,7 @@ export function PendingPenalties({
                       >
                         {penalty.kart_number}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="pr-4">
                         <div className="flex justify-end">
                           <Button
                             size="sm"
