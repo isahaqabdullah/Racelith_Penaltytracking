@@ -49,22 +49,28 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
         penalty_description = None
 
         if "white line infringement" in desc_lower:
-            # White line: special warning accumulation logic (180 min expiry, 3 warnings = penalty)
-            # Get *non-expired* white line infringements for this kart
-            valid_white_infringements = db.query(Infringement).filter(
-                Infringement.kart_number == payload.kart_number,
-                Infringement.description.ilike("%white line infringement%"),
-                Infringement.timestamp >= expiry_threshold
-            ).order_by(Infringement.timestamp.desc()).all()
-
-            warning_count = len(valid_white_infringements) + 1  # +1 for current one
-
-            if warning_count >= 3:
+            # White line: honor provided penalty_description; only run warning accumulation when it's a warning
+            incoming_penalty = (payload.penalty_description or "").strip()
+            if incoming_penalty and incoming_penalty.lower() != "warning":
+                warning_count = 1
                 penalty_due = "Yes"
-                penalty_description = "5 sec Stop & Go"
+                penalty_description = incoming_penalty
             else:
-                penalty_due = "No"
-                penalty_description = "Warning"
+                # Warning path: special accumulation (180 min expiry, 3 warnings = penalty)
+                valid_white_infringements = db.query(Infringement).filter(
+                    Infringement.kart_number == payload.kart_number,
+                    Infringement.description.ilike("%white line infringement%"),
+                    Infringement.timestamp >= expiry_threshold
+                ).order_by(Infringement.timestamp.desc()).all()
+
+                warning_count = len(valid_white_infringements) + 1  # +1 for current one
+
+                if warning_count >= 3:
+                    penalty_due = "Yes"
+                    penalty_description = "5 sec Stop & Go"
+                else:
+                    penalty_due = "No"
+                    penalty_description = "Warning"
 
         else:
             # All other infringements (yellow zone, generic, etc.): use penalty_description from payload

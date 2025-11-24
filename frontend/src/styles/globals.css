@@ -187,3 +187,25 @@
 html {
   font-size: var(--font-size);
 }
+
+/* Status badge classes - same styling as destructive variant but with custom colors */
+.badge-status-applied {
+  border: 1px solid transparent !important;
+  background-color: #16a34a !important; /* green-600 */
+  color: #ffffff !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+}
+
+.badge-status-pending {
+  border: 1px solid transparent !important;
+  background-color: #dc2626 !important; /* red-600 */
+  color: #ffffff !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+}
+
+.badge-status-warning {
+  border: 1px solid transparent !important;
+  background-color: #eab308 !important; /* yellow-500 */
+  color: #ffffff !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+}

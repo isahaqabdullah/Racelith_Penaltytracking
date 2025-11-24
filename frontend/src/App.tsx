@@ -204,6 +204,9 @@ export default function App() {
           setEditingInfringement(infringement);
           setEditDialogOpen(true);
         }
+      } else if (event.data?.type === 'updateInfringement') {
+        // Popup updated an infringement, reload data to reflect changes
+        await loadData(false);
       } else if (event.data?.type === 'deleteInfringement') {
         try {
           await deleteInfringement(event.data.id);
@@ -424,11 +427,11 @@ export default function App() {
               </Alert>
             )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1fr_1.4fr] gap-6">
+            <div className="min-h-0">
               <InfringementForm onSubmit={handleNewInfringement} />
             </div>
-            <div>
+            <div className="min-h-0">
               <PendingPenalties 
                   penalties={pendingPenalties}
                 onApplyPenalty={handleApplyPenalty}

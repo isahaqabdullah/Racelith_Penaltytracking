@@ -24,7 +24,7 @@ export function PendingPenalties({
   };
 
   return (
-    <Card>
+    <Card className="flex flex-col overflow-hidden" style={{ height: '470px' }}>
       <CardHeader>
         <div className="flex items-center gap-2">
           <AlertCircle className="h-5 w-5 text-red-600" />
@@ -32,16 +32,21 @@ export function PendingPenalties({
         </div>
         <p className="text-sm text-muted-foreground">Penalties requiring action</p>
       </CardHeader>
-      <CardContent>
-        <div className="h-[700px] overflow-auto">
-          <Table>
+      <CardContent className="flex-1 min-h-0 p-0">
+        <div
+          className="h-full min-h-0 overflow-y-auto overflow-x-auto px-6 pb-6"
+          style={{ maxHeight: '380px' }}
+        >
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Kart #</TableHead>
+                <TableHead className="sticky left-0 z-30 bg-card border-r pr-4">Time</TableHead>
+                <TableHead className="sticky left-[90px] z-20 bg-card border-r pr-4">
+                  Kart #
+                </TableHead>
+                <TableHead className="text-right">Action</TableHead>
                 <TableHead>Infringement</TableHead>
                 <TableHead>Penalty</TableHead>
-                <TableHead>Time</TableHead>
-                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -52,27 +57,30 @@ export function PendingPenalties({
                   </TableCell>
                 </TableRow>
               ) : (
-                penalties.map((penalty) => {
-                  const isWarningOnly = penalty.penalty_description === 'Warning';
-                  return (
+                [...penalties].sort((a, b) => {
+                  // Sort by most recent first (newest timestamp first)
+                  return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+                }).map((penalty) => {
+                const isWarningOnly = penalty.penalty_description === 'Warning';
+                return (
                     <TableRow
                       key={penalty.id}
                       className={isWarningOnly ? undefined : 'bg-red-50 dark:bg-red-900/10'}
                     >
-                      <TableCell>{penalty.kart_number}</TableCell>
-                      <TableCell>{penalty.description}</TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded-md ${
-                            isWarningOnly
-                              ? 'bg-yellow-500 text-black'
-                              : 'bg-red-600 text-white'
-                          }`}
-                        >
-                          {penalty.penalty_description ?? '—'}
-                        </span>
+                      <TableCell
+                        className={`sticky left-0 z-30 border-r pr-4 ${
+                          isWarningOnly ? 'bg-card' : 'bg-red-50 dark:bg-red-900/10'
+                        }`}
+                      >
+                        {formatTime(penalty.timestamp)}
                       </TableCell>
-                      <TableCell>{formatTime(penalty.timestamp)}</TableCell>
+                      <TableCell
+                        className={`sticky left-[90px] z-20 border-r pr-4 ${
+                          isWarningOnly ? 'bg-card' : 'bg-red-50 dark:bg-red-900/10'
+                        }`}
+                      >
+                        {penalty.kart_number}
+                      </TableCell>
                       <TableCell>
                         <div className="flex justify-end">
                           <Button
@@ -89,8 +97,20 @@ export function PendingPenalties({
                           </Button>
                         </div>
                       </TableCell>
+                      <TableCell>{penalty.description}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded-md ${
+                            isWarningOnly
+                              ? 'bg-yellow-500 text-black'
+                              : 'bg-red-600 text-white'
+                          }`}
+                        >
+                          {penalty.penalty_description ?? '—'}
+                        </span>
+                      </TableCell>
                     </TableRow>
-                  );
+                );
                 })
               )}
             </TableBody>

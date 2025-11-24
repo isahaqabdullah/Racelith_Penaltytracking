@@ -83,10 +83,10 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
       <CardHeader>
         <CardTitle className="font-bold">Log Infringement</CardTitle>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+      <CardContent className="pt-6 pb-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-5">
               <Label htmlFor="kartNumber">Kart Number</Label>
               <Input
                 id="kartNumber"
@@ -98,7 +98,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-5">
               <Label htmlFor="turn">Turn Number</Label>
               <Input
                 id="turn"
@@ -111,7 +111,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-5">
             <Label htmlFor="observer">Observer</Label>
             <Input
               id="observer"
@@ -123,8 +123,8 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          <div className="space-y-5">
+            <div className="flex items-center justify-between mb-0.5">
               <Label htmlFor="infringement">Infringement</Label>
               {infringement && (
                 <Button
@@ -156,8 +156,8 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          <div className="space-y-5">
+            <div className="flex items-center justify-between mb-0.5">
               <Label htmlFor="penaltyDescription">Penalty Description</Label>
               {penaltyDescription && (
                 <Button
@@ -181,9 +181,11 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
             />
           </div>
 
-          <Button type="submit" className="w-full">
-            {isSubmitting ? 'Logging...' : 'Log Infringement'}
-          </Button>
+          <div className="pt-2">
+            <Button type="submit" className="w-full">
+              {isSubmitting ? 'Logging...' : 'Log Infringement'}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
