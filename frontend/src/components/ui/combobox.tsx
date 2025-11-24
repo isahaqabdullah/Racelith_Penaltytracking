@@ -124,10 +124,12 @@ export function Combobox({
         <PopoverContent 
           className="p-0"
           align="start"
+          side="bottom"
+          sideOffset={4}
           style={{ width: popoverWidth ? `${popoverWidth}px` : undefined }}
         >
           <Command shouldFilter={false}>
-            <CommandList>
+            <CommandList className="!max-h-[320px]">
               <CommandEmpty>{emptyMessage}</CommandEmpty>
               <CommandGroup>
                 {filteredOptions.length > 0 ? (
