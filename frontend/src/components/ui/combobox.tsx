@@ -139,7 +139,7 @@ export function Combobox({
                       value={option}
                       onSelect={() => handleSelect(option)}
                       className={cn(
-                        "cursor-pointer transition-colors",
+                        "cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground",
                         value === option && "bg-accent"
                       )}
                     >

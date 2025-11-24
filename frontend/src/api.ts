@@ -1,7 +1,35 @@
-export const API_BASE =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE
-    ? import.meta.env.VITE_API_BASE
-    : 'http://localhost:8000';
+// Dynamically determine API base URL
+// This allows the app to work from any device on the network by detecting the hostname
+const getApiBase = (): string => {
+  // Check if VITE_API_BASE is explicitly set in environment
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE) {
+    const envBase = import.meta.env.VITE_API_BASE;
+    // If it's set to a relative path, use it (works with nginx proxy)
+    if (envBase.startsWith('/')) {
+      return envBase;
+    }
+    // If it's an absolute URL and not localhost, use it
+    if (!envBase.includes('localhost') && !envBase.includes('127.0.0.1')) {
+      return envBase;
+    }
+    // If it's localhost but we're in browser, we'll detect hostname instead
+  }
+
+  // In browser, detect from current location to work on any network
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    const hostname = window.location.hostname;
+    
+    // Use the same hostname with backend port 8000
+    // This works when accessing from any device on the network
+    return `${protocol}//${hostname}:8000`;
+  }
+
+  // Fallback for SSR or build time
+  return 'http://localhost:8000';
+};
+
+export const API_BASE = getApiBase();
 
 async function request<T>(
   path: string,

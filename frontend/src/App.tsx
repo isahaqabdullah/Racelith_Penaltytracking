@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   API_BASE,
@@ -24,6 +24,7 @@ import {
   getConfig,
   updateConfig,
 } from './api';
+import { wsManager } from './websocket';
 import type {
   CreateInfringementPayload,
   InfringementRecord,
@@ -48,6 +49,7 @@ export default function App() {
   const [hasActiveSession, setHasActiveSession] = useState<boolean | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [warningExpiryMinutes, setWarningExpiryMinutes] = useState<number>(180);
+  const [wsConnected, setWsConnected] = useState<boolean>(false);
   const popupWindowRef = useRef<Window | null>(null);
 
   // Fetch config from backend on mount
@@ -153,47 +155,40 @@ export default function App() {
     }
   }, [currentView, loadData]);
 
+  // WebSocket connection for real-time updates
   useEffect(() => {
-    const url = `${API_BASE.replace(/^http/, 'ws').replace(/\/$/, '')}/ws`;
-    let socket: WebSocket | null = null;
+    // Check connection status periodically
+    const checkStatus = () => {
+      setWsConnected(wsManager.isConnected());
+    };
+    const statusInterval = setInterval(checkStatus, 1000);
+    checkStatus(); // Initial check
 
-    try {
-      socket = new WebSocket(url);
-    } catch (error) {
-      console.error('Failed to establish WebSocket connection', error);
-      return;
-    }
-
-    socket.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        const relevantTypes = new Set([
-          'new_infringement',
-          'update_infringement',
-          'delete_infringement',
-          'penalty_applied',
-          'session_started',
-          'session_loaded',
-          'session_closed',
-          'session_deleted',
-          'session_imported',
-        ]);
-        if (message?.type && relevantTypes.has(message.type)) {
-          void loadData(false);
-        }
-      } catch (error) {
-        console.error('Malformed WebSocket message', error);
+    const unsubscribe = wsManager.subscribe((message) => {
+      setWsConnected(wsManager.isConnected());
+      const relevantTypes = new Set([
+        'new_infringement',
+        'update_infringement',
+        'delete_infringement',
+        'penalty_applied',
+        'session_started',
+        'session_loaded',
+        'session_closed',
+        'session_deleted',
+        'session_imported',
+      ]);
+      if (message?.type && relevantTypes.has(message.type)) {
+        // Use loadData from closure - don't include in dependencies to prevent reconnections
+        void loadData(false);
       }
-    };
-
-    socket.onerror = (error) => {
-      console.error('WebSocket error', error);
-    };
+    });
 
     return () => {
-      socket?.close();
+      clearInterval(statusInterval);
+      unsubscribe();
     };
-  }, [loadData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - connection should persist regardless of loadData changes
 
   // Listen for messages from popup windows (for edit/delete actions)
   useEffect(() => {
@@ -355,6 +350,16 @@ export default function App() {
             </div>
             {currentView === 'penalty-logging' && activeSessionName && (
               <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2" title={wsConnected ? 'WebSocket connected' : 'WebSocket disconnected'}>
+                  {wsConnected ? (
+                    <Wifi className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <WifiOff className="h-4 w-4 text-red-500" />
+                  )}
+                  <span className="text-xs text-muted-foreground">
+                    {wsConnected ? 'Live' : 'Offline'}
+                  </span>
+                </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Active Session</p>
                   <p className="font-semibold">{activeSessionName}</p>

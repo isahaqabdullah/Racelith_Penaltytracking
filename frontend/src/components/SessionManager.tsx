@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -34,6 +34,7 @@ import {
   importSession,
   type SessionSummary,
 } from '../api';
+import { wsManager } from '../websocket';
 
 interface SessionManagerProps {
   onSessionChange?: () => void;
@@ -56,7 +57,7 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
   const [isImporting, setIsImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
 
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await listSessions();
@@ -66,7 +67,7 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadSessions();
@@ -74,41 +75,23 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
 
   // Listen to WebSocket events for session changes
   useEffect(() => {
-    const url = `${API_BASE.replace(/^http/, 'ws').replace(/\/$/, '')}/ws`;
-    let socket: WebSocket | null = null;
-
-    try {
-      socket = new WebSocket(url);
-    } catch (error) {
-      console.error('Failed to establish WebSocket connection for sessions', error);
-      return;
-    }
-
-    socket.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
-        const sessionEventTypes = new Set([
-          'session_started',
-          'session_loaded',
-          'session_closed',
-          'session_deleted',
-        ]);
-        if (message?.type && sessionEventTypes.has(message.type)) {
-          void loadSessions();
-        }
-      } catch (error) {
-        console.error('Malformed WebSocket message in SessionManager', error);
+    const unsubscribe = wsManager.subscribe((message) => {
+      const sessionEventTypes = new Set([
+        'session_started',
+        'session_loaded',
+        'session_closed',
+        'session_deleted',
+        'session_imported',
+      ]);
+      if (message?.type && sessionEventTypes.has(message.type)) {
+        // Use loadSessions from closure - don't include in dependencies to prevent reconnections
+        void loadSessions();
       }
-    };
+    });
 
-    socket.onerror = (error) => {
-      console.error('WebSocket error in SessionManager', error);
-    };
-
-    return () => {
-      socket?.close();
-    };
-  }, []);
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - connection should persist regardless of loadSessions changes
 
   const handleCreateSession = async () => {
     if (!newSessionName.trim()) {

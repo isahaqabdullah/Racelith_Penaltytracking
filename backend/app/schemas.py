@@ -20,11 +20,11 @@ class InfringementResponse(BaseModel):
     id: int
     kart_number: int
     turn_number: Optional[int]
-    description: str
+    description: Optional[str]
     observer: Optional[str]
     warning_count: int
     penalty_due: str
-    penalty_description: str
+    penalty_description: Optional[str]
     penalty_taken: Optional[datetime]
     timestamp: datetime
 

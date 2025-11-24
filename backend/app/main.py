@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from .routes import session, infringements, penalties, history, infringement_log
@@ -8,6 +8,7 @@ from .models import SessionInfo
 from .vars import get_warning_expiry_minutes, set_warning_expiry_minutes
 from pydantic import BaseModel
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -98,13 +99,26 @@ async def websocket_endpoint(websocket: WebSocket):
     WebSocket endpoint for broadcasting events.
     Any connected client will receive broadcast messages from manager.
     """
-    await manager.connect(websocket)
     try:
+        await manager.connect(websocket)
+        # Send a welcome message to confirm connection
+        await websocket.send_text(json.dumps({"type": "connected", "message": "WebSocket connection established"}))
+        
         while True:
-            await websocket.receive_text()
+            # Keep connection alive by receiving messages (client may send ping/heartbeat)
+            # Use receive() instead of receive_text() to handle both text and binary
+            data = await websocket.receive()
+            if "text" in data:
+                # Client sent text (could be ping/heartbeat)
+                pass
+            elif "bytes" in data:
+                # Client sent binary data
+                pass
     except WebSocketDisconnect:
+        logger.info("WebSocket client disconnected normally")
         await manager.disconnect(websocket)
-    except Exception:
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}", exc_info=True)
         await manager.disconnect(websocket)
 
 # --- Optional: auto-switch to default session on startup ---

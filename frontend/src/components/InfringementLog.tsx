@@ -1,6 +1,5 @@
 import { useState, useRef, type CSSProperties } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -9,7 +8,6 @@ import { Pencil, Trash2, Maximize2 } from 'lucide-react';
 import type { InfringementRecord } from '../api';
 import { API_BASE } from '../api';
 import { generatePopupHTML } from './popup/popupTemplate';
-import { ScrollArea } from './ui/scroll-area';
 
 interface InfringementLogProps {
   infringements: InfringementRecord[];
@@ -114,8 +112,8 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="flex flex-col overflow-hidden" style={{ height: '750px', maxHeight: '750px' }}>
+      <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CardTitle>Recent Infringements</CardTitle>
@@ -155,116 +153,129 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        <ScrollArea className="h-[750px] w-full overflow-x-auto">
-          <div className="min-w-[1200px] px-6 pb-6">
-            <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Time</TableHead>
-                <TableHead>Kart #</TableHead>
-                <TableHead>Turn</TableHead>
-                <TableHead>Infringement</TableHead>
-                <TableHead>Penalty</TableHead>
-                <TableHead>Observer</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredInfringements.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
-                    {searchKartNumber ? `No infringements found for kart #${searchKartNumber}` : 'No infringements logged yet'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredInfringements.map((inf) => {
-                  const isWarning = inf.penalty_description === 'Warning';
-                  
-                  // Check if warning is expired based on configurable expiry time
-                  const isExpiredWarning = isWarning && (() => {
-                    const timestamp = new Date(inf.timestamp);
-                    const now = new Date();
-                    const diffMinutes = (now.getTime() - timestamp.getTime()) / (1000 * 60);
-                    return diffMinutes > warningExpiryMinutes;
-                  })();
-                  
-                  const penaltyApplied =
-                    inf.penalty_due === 'No' &&
-                    Boolean(inf.penalty_taken) &&
-                    !isWarning;
+      <CardContent className="flex-1 min-h-0 p-0 overflow-hidden">
+        <div
+          className="h-full w-full overflow-y-auto overflow-x-auto"
+          style={{ height: '100%' }}
+        >
+          <div className="px-6 pb-6">
+            <table className="w-full caption-bottom text-sm min-w-[1200px] border-collapse">
+              <thead className="[&_tr]:border-b sticky top-0 z-40 bg-card">
+                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                  <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap sticky left-0 z-50 bg-card border-r pr-4">
+                    Time
+                  </th>
+                  <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap sticky left-[90px] z-40 bg-card border-r pr-4">
+                    Kart #
+                  </th>
+                  <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap">Turn</th>
+                  <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap">Infringement</th>
+                  <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap">Penalty</th>
+                  <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap">Observer</th>
+                  <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap">Status</th>
+                  <th className="h-10 px-2 text-right align-middle font-medium whitespace-nowrap sticky right-0 z-40 bg-card border-l pl-4">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="[&_tr:last-child]:border-0">
+                {filteredInfringements.length === 0 ? (
+                  <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                    <td colSpan={8} className="p-2 align-middle text-center text-muted-foreground">
+                      {searchKartNumber ? `No infringements found for kart #${searchKartNumber}` : 'No infringements logged yet'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredInfringements.map((inf) => {
+                    const isWarning = inf.penalty_description === 'Warning';
+                    
+                    // Check if warning is expired based on configurable expiry time
+                    const isExpiredWarning = isWarning && (() => {
+                      const timestamp = new Date(inf.timestamp);
+                      const now = new Date();
+                      const diffMinutes = (now.getTime() - timestamp.getTime()) / (1000 * 60);
+                      return diffMinutes > warningExpiryMinutes;
+                    })();
+                    
+                    const penaltyApplied =
+                      inf.penalty_due === 'No' &&
+                      Boolean(inf.penalty_taken) &&
+                      !isWarning;
 
-                  const isNoFurtherAction = inf.penalty_description === 'No further action';
+                    const isNoFurtherAction = inf.penalty_description === 'No further action';
 
-                  let statusLabel = '';
-                  let statusVariant: 'default' | 'destructive' | 'outline' | 'secondary' = 'outline';
-                  let customStyle: CSSProperties | undefined = undefined;
+                    let statusLabel = '';
+                    let statusVariant: 'default' | 'destructive' | 'outline' | 'secondary' = 'outline';
+                    let customStyle: CSSProperties | undefined = undefined;
 
-                  if (penaltyApplied) {
-                    statusLabel = 'Applied';
-                    statusVariant = 'destructive';
-                    customStyle = { backgroundColor: '#008000', color: '#ffffff', borderColor: 'transparent' };
-                  } else if (isExpiredWarning) {
-                    statusLabel = 'Expired';
-                    statusVariant = 'secondary';
-                  } else if (isWarning) {
-                    statusLabel = 'Warning';
-                    statusVariant = 'destructive';
-                    customStyle = { backgroundColor: '#E9D502', color: '#ffffff', borderColor: 'transparent' };
-                  } else if (isNoFurtherAction && inf.penalty_due === 'No') {
-                    statusLabel = 'No action';
-                    statusVariant = 'outline';
-                  } else if (inf.penalty_due === 'Yes') {
-                    statusLabel = 'Pending';
-                    statusVariant = 'destructive';
-                    customStyle = { backgroundColor: '#dc2626', color: '#ffffff', borderColor: 'transparent' };
-                  } else {
-                    statusLabel = 'Cleared';
-                    statusVariant = 'outline';
-                  }
-                  return (
-                    <TableRow key={inf.id}>
-                      <TableCell>{formatTime(inf.timestamp)}</TableCell>
-                      <TableCell>{inf.kart_number}</TableCell>
-                      <TableCell>{inf.turn_number ?? '—'}</TableCell>
-                      <TableCell>{inf.description}</TableCell>
-                      <TableCell>{inf.penalty_description ?? '—'}</TableCell>
-                      <TableCell>{inf.observer ?? '—'}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={statusVariant}
-                          style={customStyle}
-                        >
-                          {statusLabel}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onEdit(inf)}
+                    if (penaltyApplied) {
+                      statusLabel = 'Applied';
+                      statusVariant = 'destructive';
+                      customStyle = { backgroundColor: '#008000', color: '#ffffff', borderColor: 'transparent' };
+                    } else if (isExpiredWarning) {
+                      statusLabel = 'Expired';
+                      statusVariant = 'secondary';
+                    } else if (isWarning) {
+                      statusLabel = 'Warning';
+                      statusVariant = 'destructive';
+                      customStyle = { backgroundColor: '#E9D502', color: '#ffffff', borderColor: 'transparent' };
+                    } else if (isNoFurtherAction && inf.penalty_due === 'No') {
+                      statusLabel = 'No action';
+                      statusVariant = 'outline';
+                    } else if (inf.penalty_due === 'Yes') {
+                      statusLabel = 'Pending';
+                      statusVariant = 'destructive';
+                      customStyle = { backgroundColor: '#dc2626', color: '#ffffff', borderColor: 'transparent' };
+                    } else {
+                      statusLabel = 'Cleared';
+                      statusVariant = 'outline';
+                    }
+                    return (
+                      <tr key={inf.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                        <td className="p-2 align-middle whitespace-nowrap sticky left-0 z-30 bg-card border-r pr-4">
+                          {formatTime(inf.timestamp)}
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap sticky left-[90px] z-20 bg-card border-r pr-4">
+                          {inf.kart_number}
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap">{inf.turn_number ?? '—'}</td>
+                        <td className="p-2 align-middle whitespace-nowrap">{inf.description}</td>
+                        <td className="p-2 align-middle whitespace-nowrap">{inf.penalty_description ?? '—'}</td>
+                        <td className="p-2 align-middle whitespace-nowrap">{inf.observer ?? '—'}</td>
+                        <td className="p-2 align-middle whitespace-nowrap">
+                          <Badge 
+                            variant={statusVariant}
+                            style={customStyle}
                           >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => onDelete(inf.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+                            {statusLabel}
+                          </Badge>
+                        </td>
+                        <td className="p-2 align-middle whitespace-nowrap sticky right-0 z-20 bg-card border-l pl-4">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onEdit(inf)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => onDelete(inf.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-600" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );

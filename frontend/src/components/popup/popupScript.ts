@@ -266,7 +266,28 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
 
   // WebSocket connection for real-time updates
   try {
-    const wsUrl = API_BASE.replace(/^http/, "ws").replace(/\\/$/, "") + "/ws";
+    // Use same origin (nginx proxy) if API_BASE uses a different port
+    // This avoids direct port access which may be blocked
+    let wsUrl;
+    if (!API_BASE || API_BASE.startsWith('/')) {
+      // Relative URL - use same origin
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = protocol + '//' + window.location.host + '/ws';
+    } else {
+      const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+      const apiPortMatch = API_BASE.match(/:(\d+)/);
+      const apiPort = apiPortMatch ? apiPortMatch[1] : null;
+      
+      // If ports differ, use same origin (nginx will proxy)
+      if (apiPort && apiPort !== currentPort) {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = protocol + '//' + window.location.host + '/ws';
+      } else {
+        // Otherwise, convert API_BASE to WebSocket URL
+        wsUrl = API_BASE.replace(/^http/, "ws").replace(/\\/$/, "") + "/ws";
+      }
+    }
+    
     socket = new WebSocket(wsUrl);
     
     socket.onmessage = function(e) {

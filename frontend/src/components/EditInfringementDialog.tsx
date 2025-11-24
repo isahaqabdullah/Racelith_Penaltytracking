@@ -14,15 +14,18 @@ import type { UpdateInfringementPayload, InfringementRecord } from '../api';
 
 const INFRINGEMENT_OPTIONS = [
   'White Line Infringement',
-  'Pit Time Infringement',
   'Yellow Zone Infringement',
-  'Track Limits',
+  'Advantage by Contact',
+  'Contact',
+  'Overtaking under yellow flag',
+  'Not Slowing under yellow flag',
+  'Pit Time Infringement',
   'Dangerous Driving',
-  'Blocking',
-  'Collision',
+  'Excessive Weaving or Blocking',
   'Unsafe Re-entry',
   'Ignoring Flags',
   'Pit Lane Speed',
+  'Advantage-Exceeding track limits',
   'Other',
 ];
 
@@ -30,6 +33,9 @@ const PENALTY_OPTIONS = [
   'Warning',
   '5 Sec',
   '10 Sec',
+  'Grid Penalty',
+  'No further action',
+  'Under investigation',
   'Fastest Lap Invalidation',
   'Stop and Go',
   'Drive Through',
@@ -57,6 +63,7 @@ export function EditInfringementDialog({
   const [observer, setObserver] = useState('');
   const [infringementType, setInfringementType] = useState('');
   const [penaltyDescription, setPenaltyDescription] = useState('');
+  const [secondKartNumber, setSecondKartNumber] = useState('');
 
   // Update form values when infringement changes
   useEffect(() => {
@@ -68,7 +75,23 @@ export function EditInfringementDialog({
           : String(infringement.turn_number)
       );
       setObserver(infringement.observer ?? '');
-      setInfringementType(infringement.description);
+      
+      // Parse description to extract infringement type and second kart number
+      const description = infringement.description;
+      let baseInfringementType = description;
+      let extractedSecondKart = '';
+      
+      // Check if description is in format "ABC over X" or "Contact over X"
+      if (description.startsWith('ABC over ')) {
+        baseInfringementType = 'Advantage by Contact';
+        extractedSecondKart = description.replace('ABC over ', '');
+      } else if (description.startsWith('Contact over ')) {
+        baseInfringementType = 'Contact';
+        extractedSecondKart = description.replace('Contact over ', '');
+      }
+      
+      setInfringementType(baseInfringementType);
+      setSecondKartNumber(extractedSecondKart);
       setPenaltyDescription(infringement.penalty_description ?? '');
     }
   }, [infringement]);
@@ -86,10 +109,23 @@ export function EditInfringementDialog({
       return;
     }
 
+    // Format description for "Advantage by Contact" or "Contact" with second kart number
+    let finalDescription = infringementType;
+    if (secondKartNumber.trim() !== '') {
+      const parsedSecondKart = Number(secondKartNumber.trim());
+      if (Number.isFinite(parsedSecondKart)) {
+        if (infringementType === 'Advantage by Contact') {
+          finalDescription = `ABC over ${parsedSecondKart}`;
+        } else if (infringementType === 'Contact') {
+          finalDescription = `Contact over ${parsedSecondKart}`;
+        }
+      }
+    }
+
     await onSave(infringement.id, {
       kart_number: parsedKart,
       turn_number: turnNumber,
-      description: infringementType,
+      description: finalDescription,
       observer: observerValue,
       penalty_description: penaltyDescription,
       performed_by: observerValue || 'Race Control Operator',
@@ -156,6 +192,10 @@ export function EditInfringementDialog({
               value={infringementType}
               onValueChange={(value: string) => {
                 setInfringementType(value);
+                // Clear second kart number if not "Advantage by Contact" or "Contact"
+                if (value !== 'Advantage by Contact' && value !== 'Contact') {
+                  setSecondKartNumber('');
+                }
                 if (
                   value === 'White Line Infringement' ||
                   value === 'Yellow Zone Infringement'
@@ -167,6 +207,19 @@ export function EditInfringementDialog({
               required
             />
           </div>
+
+          {(infringementType === 'Advantage by Contact' || infringementType === 'Contact') && (
+            <div className="space-y-2">
+              <Label htmlFor="edit-secondKartNumber">Other Kart Number (optional)</Label>
+              <Input
+                id="edit-secondKartNumber"
+                type="text"
+                value={secondKartNumber}
+                onChange={(e) => setSecondKartNumber(e.target.value)}
+                placeholder="e.g., 15"
+              />
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="edit-penaltyDescription">Penalty Description</Label>

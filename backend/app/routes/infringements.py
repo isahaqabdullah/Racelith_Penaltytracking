@@ -119,7 +119,7 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
         db.add(history)
         db.commit()
 
-        # Broadcast asynchronously
+        # Broadcast asynchronously - FastAPI should always inject BackgroundTasks
         if background_tasks:
             background_tasks.add_task(manager.broadcast, json.dumps({
                 "type": "new_infringement",
@@ -133,6 +133,8 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
                     "timestamp": new_inf.timestamp.isoformat()
                 }
             }))
+        else:
+            logger.warning("BackgroundTasks not available - WebSocket broadcast skipped")
 
         return new_inf
     except (ProgrammingError, OperationalError) as e:
