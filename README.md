@@ -93,9 +93,9 @@ docker-compose down
 ./restore.sh backups/db_all_YYYYMMDD_HHMMSS.sql.gz
 ```
 
-**⚠️ IMPORTANT**: See `DISASTER_RECOVERY.md` for complete failure analysis and recovery procedures.
+** IMPORTANT**: See `DISASTER_RECOVERY.md` for complete failure analysis and recovery procedures.
 
-### ⚠️ DANGER: Stop and remove ALL data (including database):
+### DANGER: Stop and remove ALL data (including database):
 ```bash
 # WARNING: This DELETES all data permanently!
 # Only use if you want to completely reset the system
@@ -106,17 +106,17 @@ docker-compose down -v
 
 This application is **production-ready** with the following features:
 
-- ✅ **Health checks** for all services
-- ✅ **Database initialization** and waiting scripts
-- ✅ **Configurable CORS** for security
-- ✅ **Environment-based configuration**
-- ✅ **Docker networking** for service isolation
-- ✅ **Nginx configuration** for frontend
-- ✅ **Security headers** and optimizations
-- ✅ **Production Docker Compose** override file
-- ✅ **Database backups** support
-- ✅ **Logging** configuration
-- ✅ **Restart policies** for high availability
+-  **Health checks** for all services
+-  **Database initialization** and waiting scripts
+-  **Configurable CORS** for security
+-  **Environment-based configuration**
+-  **Docker networking** for service isolation
+-  **Nginx configuration** for frontend
+-  **Security headers** and optimizations
+-  **Production Docker Compose** override file
+-  **Database backups** support
+-  **Logging** configuration
+-  **Restart policies** for high availability
 
 ### Before Deploying to Production:
 
