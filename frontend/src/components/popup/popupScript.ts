@@ -225,7 +225,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     const payload = {
       kart_number: parseInt(document.getElementById("editKart").value),
       turn_number: document.getElementById("editTurn").value
-        ? parseInt(document.getElementById("editTurn").value)
+        ? document.getElementById("editTurn").value.trim()
         : null,
       observer: document.getElementById("editObserver").value,
       description: document.getElementById("editInfringement").value,
@@ -325,4 +325,3 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
 })();
   `;
 }
-

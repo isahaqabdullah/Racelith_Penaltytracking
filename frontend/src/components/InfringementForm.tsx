@@ -53,21 +53,22 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!kartNumber || !infringement || !penaltyDescription) {
+    // Only kart number is required
+    if (!kartNumber) {
       return;
     }
 
     const parsedKart = Number(kartNumber);
-    const turnNumber = turn === '' ? null : Number(turn);
+    const turnValue = turn.trim() === '' ? null : turn.trim();
     const observerValue = observer.trim() === '' ? null : observer.trim();
 
-    if (!Number.isFinite(parsedKart) || (turnNumber !== null && !Number.isFinite(turnNumber))) {
+    if (!Number.isFinite(parsedKart)) {
       return;
     }
 
     // Format description for "Advantage by Contact" or "Contact" with second kart number
-    let finalDescription = infringement;
-    if (secondKartNumber.trim() !== '') {
+    let finalDescription: string | null = infringement.trim() === '' ? null : infringement;
+    if (infringement && secondKartNumber.trim() !== '') {
       const parsedSecondKart = Number(secondKartNumber.trim());
       if (Number.isFinite(parsedSecondKart)) {
         if (infringement === 'Advantage by Contact') {
@@ -82,11 +83,11 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
       setIsSubmitting(true);
       await onSubmit({
         kart_number: parsedKart,
-        turn_number: turnNumber,
+        turn_number: turnValue,
         description: finalDescription,
         observer: observerValue,
-        penalty_description: penaltyDescription,
-        performed_by: observerValue || 'Race Control Operator',
+        penalty_description: penaltyDescription.trim() === '' ? null : penaltyDescription,
+        performed_by: observerValue || null,
       });
 
       setKartNumber('');
@@ -124,7 +125,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
               <Label htmlFor="turn">Turn Number</Label>
               <Input
                 id="turn"
-                type="number"
+                type="text"
                 value={turn}
                 onChange={(e) => setTurn(e.target.value)}
                 placeholder="e.g., 3"
@@ -175,8 +176,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
                   setPenaltyDescription('Warning');
                 }
               }}
-              placeholder="Select or type infringement type"
-              required
+              placeholder="Select or type infringement type "
             />
           </div>
 
@@ -213,8 +213,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
               options={PENALTY_OPTIONS}
               value={penaltyDescription}
               onValueChange={setPenaltyDescription}
-              placeholder="Select or type penalty type"
-              required
+              placeholder="Select or type penalty type "
             />
           </div>
 

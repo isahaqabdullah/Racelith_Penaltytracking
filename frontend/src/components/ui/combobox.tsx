@@ -25,6 +25,8 @@ interface ComboboxProps {
   emptyMessage?: string;
   required?: boolean;
   id?: string;
+  /** If true, disable collision handling so the popover always opens below the field. */
+  forceBottom?: boolean;
 }
 
 export function Combobox({
@@ -36,6 +38,7 @@ export function Combobox({
   emptyMessage = "No option found.",
   required = false,
   id,
+  forceBottom = false,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [inputValue, setInputValue] = React.useState(value);
@@ -126,6 +129,7 @@ export function Combobox({
           align="start"
           side="bottom"
           sideOffset={4}
+          avoidCollisions={!forceBottom}
           style={{ width: popoverWidth ? `${popoverWidth}px` : undefined }}
         >
           <Command shouldFilter={false}>
@@ -156,4 +160,3 @@ export function Combobox({
     </Popover>
   );
 }
-

@@ -32,6 +32,16 @@ def handle_db_error(e: Exception):
             detail=f"Database error: {str(e)}"
         )
 
+def _normalize_turn_number(value):
+    """Allow turn_number to be provided as int or string; store as trimmed string or None."""
+    if value is None:
+        return None
+    try:
+        text = str(value).strip()
+        return text if text != "" else None
+    except Exception:
+        return None
+
 @router.post("/", response_model=InfringementResponse)
 def create_infringement(payload: InfringementCreate, db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
     """
@@ -40,7 +50,9 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
     - All other infringements: use penalty_description from payload if provided.
     """
     try:
-        desc_lower = payload.description.strip().lower()
+        # Handle optional description - default to empty string if not provided
+        description = payload.description or ""
+        desc_lower = description.strip().lower() if description else ""
         now = datetime.now(timezone.utc)
         expiry_threshold = now - timedelta(minutes=get_warning_expiry_minutes())
 
@@ -48,7 +60,7 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
         penalty_due = "No"
         penalty_description = None
 
-        if "white line infringement" in desc_lower:
+        if desc_lower and "white line infringement" in desc_lower:
             # White line: honor provided penalty_description; only run warning accumulation when it's a warning
             incoming_penalty = (payload.penalty_description or "").strip()
             if incoming_penalty and incoming_penalty.lower() != "warning":
@@ -61,10 +73,23 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
                 penalty_description = incoming_penalty
             else:
                 # Warning path: special accumulation (180 min expiry, 3 warnings = penalty)
+                # Only count warnings that haven't triggered a penalty yet (penalty_due != "Yes")
+                # This allows the warning count to reset after a penalty is issued
+                last_penalty = db.query(Infringement).filter(
+                    Infringement.kart_number == payload.kart_number,
+                    Infringement.description.ilike("%white line infringement%"),
+                    Infringement.penalty_due == "Yes"
+                ).order_by(Infringement.timestamp.desc()).first()
+
+                cycle_start = expiry_threshold
+                if last_penalty:
+                    cycle_start = max(expiry_threshold, last_penalty.timestamp)
+
                 valid_white_infringements = db.query(Infringement).filter(
                     Infringement.kart_number == payload.kart_number,
                     Infringement.description.ilike("%white line infringement%"),
-                    Infringement.timestamp >= expiry_threshold
+                    Infringement.timestamp >= cycle_start,
+                    Infringement.penalty_due != "Yes"  # Exclude infringements that already triggered a penalty
                 ).order_by(Infringement.timestamp.desc()).all()
 
                 warning_count = len(valid_white_infringements) + 1  # +1 for current one
@@ -80,8 +105,9 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
             # All other infringements (yellow zone, generic, etc.): use penalty_description from payload
             warning_count = 1
             if payload.penalty_description:
-                # "No further action" means no penalty is due
-                if payload.penalty_description.strip().lower() == "no further action":
+                desc = payload.penalty_description.strip().lower()
+                # "No further action" or "Warning" means no penalty is due
+                if desc in ["no further action", "warning"]:
                     penalty_due = "No"
                     penalty_description = payload.penalty_description
                 else:
@@ -94,8 +120,8 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
         # Create infringement record
         new_inf = Infringement(
             kart_number=payload.kart_number,
-            turn_number=payload.turn_number,
-            description=payload.description,
+            turn_number=_normalize_turn_number(payload.turn_number),
+            description=description,
             observer=payload.observer,
             warning_count=warning_count,
             penalty_due=penalty_due,
@@ -108,12 +134,13 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
         db.refresh(new_inf)
 
         # Record in history
+        performed_by = payload.performed_by or "System"
         history = InfringementHistory(
             infringement_id=new_inf.id,
             action="created",
-            performed_by=payload.performed_by,
+            performed_by=performed_by,
             observer=payload.observer,
-            details=f"{payload.description} | warning_count={warning_count} | penalty_due={penalty_due} | penalty_description={penalty_description}",
+            details=f"{description} | warning_count={warning_count} | penalty_due={penalty_due} | penalty_description={penalty_description}",
             timestamp=now
         )
         db.add(history)
@@ -200,28 +227,44 @@ def update_infringement(
             raise HTTPException(status_code=404, detail="Infringement not found")
 
         # Update fields
+        # Handle optional description - use existing if not provided, or empty string if None
+        description = payload.description if payload.description is not None else (inf.description or "")
         inf.kart_number = payload.kart_number
-        inf.turn_number = payload.turn_number
-        inf.description = payload.description
+        inf.turn_number = _normalize_turn_number(payload.turn_number)
+        inf.description = description
         inf.observer = payload.observer
-        inf.timestamp = datetime.now(timezone.utc)
+        # Keep original timestamp to reflect when the infringement was first logged
 
         # --- Re-evaluate logic (same as create) ---
-        desc_lower = payload.description.strip().lower()
+        desc_lower = description.strip().lower() if description else ""
         now = datetime.now(timezone.utc)
         expiry_threshold = now - timedelta(minutes=get_warning_expiry_minutes())
         warning_count = 0
         penalty_due = "No"
         penalty_description = None
 
-        if "white line infringement" in desc_lower:
+        if desc_lower and "white line infringement" in desc_lower:
             # White line: special warning accumulation logic (180 min expiry, 3 warnings = penalty)
             # Get *non-expired* white line infringements for this kart (excluding current one)
+            # Only count warnings that haven't triggered a penalty yet (penalty_due != "Yes")
+            # This allows the warning count to reset after a penalty is issued
+            last_penalty = db.query(Infringement).filter(
+                Infringement.kart_number == payload.kart_number,
+                Infringement.description.ilike("%white line infringement%"),
+                Infringement.penalty_due == "Yes",
+                Infringement.id != inf.id,
+            ).order_by(Infringement.timestamp.desc()).first()
+
+            cycle_start = expiry_threshold
+            if last_penalty:
+                cycle_start = max(expiry_threshold, last_penalty.timestamp)
+
             valid_white_infringements = db.query(Infringement).filter(
                 Infringement.kart_number == payload.kart_number,
                 Infringement.description.ilike("%white line infringement%"),
-                Infringement.timestamp >= expiry_threshold,
-                Infringement.id != inf.id
+                Infringement.timestamp >= cycle_start,
+                Infringement.id != inf.id,
+                Infringement.penalty_due != "Yes"  # Exclude infringements that already triggered a penalty
             ).order_by(Infringement.timestamp.desc()).all()
 
             warning_count = len(valid_white_infringements) + 1  # +1 for current one
@@ -236,8 +279,9 @@ def update_infringement(
             # All other infringements (yellow zone, generic, etc.): use penalty_description from payload
             warning_count = 1
             if payload.penalty_description:
-                # "No further action" means no penalty is due
-                if payload.penalty_description.strip().lower() == "no further action":
+                desc = payload.penalty_description.strip().lower()
+                # "No further action" or "Warning" means no penalty is due
+                if desc in ["no further action", "warning"]:
                     penalty_due = "No"
                     penalty_description = payload.penalty_description
                 else:
@@ -255,12 +299,13 @@ def update_infringement(
         db.refresh(inf)
 
         # --- Add to history ---
+        performed_by = payload.performed_by or "System"
         history = InfringementHistory(
             infringement_id=inf.id,
             action="updated",
-            performed_by=payload.performed_by,
+            performed_by=performed_by,
             observer=payload.observer,
-            details=f"Updated infringement {inf.id}: {payload.description} | warning_count={warning_count} | penalty_due={penalty_due}",
+            details=f"Updated infringement {inf.id}: {description} | warning_count={warning_count} | penalty_due={penalty_due}",
             timestamp=datetime.now(timezone.utc)
         )
         db.add(history)

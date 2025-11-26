@@ -305,7 +305,12 @@ export default function App() {
     }
   };
 
-  const handleDeleteInfringement = async (id: number) => {
+  const handleDeleteInfringement = async (id: number, options: { skipConfirm?: boolean } = {}) => {
+    if (!options.skipConfirm) {
+      const confirmed = window.confirm('Are you sure you want to delete this infringement?');
+      if (!confirmed) return;
+    }
+
     try {
       await deleteInfringement(id);
       setInfringements((prev) => prev.filter((inf) => inf.id !== id));

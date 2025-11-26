@@ -355,9 +355,14 @@ def import_session_excel(file_path: str) -> dict:
             # Convert based on field type
             if field_name == "id":
                 inf[field_name] = int(cell_value) if cell_value is not None else None
-            elif field_name in ["kart_number", "turn_number", "warning_count"]:
+            elif field_name in ["kart_number", "warning_count"]:
                 try:
                     inf[field_name] = int(cell_value) if cell_value is not None else None
+                except (ValueError, TypeError):
+                    inf[field_name] = None
+            elif field_name == "turn_number":
+                try:
+                    inf[field_name] = str(cell_value).strip() if cell_value is not None else None
                 except (ValueError, TypeError):
                     inf[field_name] = None
             elif field_name in ["penalty_taken", "timestamp"]:
@@ -570,11 +575,13 @@ def import_session_csv(file_path: str) -> dict:
                     inf[field_name] = int(value) if value else None
                 except:
                     inf[field_name] = None
-            elif field_name in ["kart_number", "turn_number", "warning_count"]:
+            elif field_name in ["kart_number", "warning_count"]:
                 try:
                     inf[field_name] = int(value) if value else None
                 except:
                     inf[field_name] = None
+            elif field_name == "turn_number":
+                inf[field_name] = value if value else None
             elif field_name in ["penalty_taken", "timestamp"]:
                 if value:
                     try:

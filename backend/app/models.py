@@ -25,7 +25,7 @@ class Infringement(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_name = Column(String, index=True)
     kart_number = Column(Integer, index=True)
-    turn_number = Column(Integer, nullable=True)
+    turn_number = Column(String, nullable=True)
     description = Column(String)
     observer = Column(String, nullable=True)
     warning_count = Column(Integer, default=0)

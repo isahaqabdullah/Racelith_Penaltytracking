@@ -61,7 +61,7 @@ async function request<T>(
 export interface InfringementRecord {
   id: number;
   kart_number: number;
-  turn_number: number | null;
+  turn_number: number | string | null;
   description: string;
   observer: string | null;
   warning_count: number;
@@ -98,10 +98,10 @@ export interface SessionSummary {
 
 export interface CreateInfringementPayload {
   kart_number: number;
-  turn_number?: number | null;
-  description: string;
+  turn_number?: string | null;
+  description?: string | null;
   observer?: string | null;
-  performed_by: string;
+  performed_by?: string | null;
   penalty_description?: string | null;
 }
 
@@ -347,4 +347,3 @@ export async function updateConfig(config: AppConfig): Promise<AppConfig> {
     body: JSON.stringify(config),
   });
 }
-

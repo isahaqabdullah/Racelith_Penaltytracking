@@ -1,13 +1,13 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
 
 class InfringementCreate(BaseModel):
     kart_number: int
-    turn_number: Optional[int] = None
-    description: str
+    turn_number: Optional[Union[int, str]] = None
+    description: Optional[str] = None
     observer: Optional[str] = None
-    performed_by: str
+    performed_by: Optional[str] = None
     # Optional future fields
     penalty_due: Optional[str] = None
     penalty_description: Optional[str] = None
@@ -19,7 +19,7 @@ class ApplyPenaltyRequest(BaseModel):
 class InfringementResponse(BaseModel):
     id: int
     kart_number: int
-    turn_number: Optional[int]
+    turn_number: Optional[str]
     description: Optional[str]
     observer: Optional[str]
     warning_count: int

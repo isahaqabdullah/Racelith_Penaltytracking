@@ -19,6 +19,7 @@ interface InfringementLogProps {
 
 export function InfringementLog({ infringements, onEdit, onDelete, warningExpiryMinutes = 180, onPopupOpened }: InfringementLogProps) {
   const [searchKartNumber, setSearchKartNumber] = useState('');
+  const [showPenaltiesOnly, setShowPenaltiesOnly] = useState(false);
   const popupWindowRef = useRef<Window | null>(null);
 
   const formatTime = (timestamp: string) => {
@@ -30,14 +31,26 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
     });
   };
 
-  // Filter infringements by kart number (exact match)
-  const filteredInfringements = searchKartNumber
+  const isPenaltyEntry = (inf: InfringementRecord) => {
+    const description = (inf.penalty_description || '').toLowerCase();
+    const hasMeaningfulPenalty =
+      inf.penalty_description &&
+      description !== 'warning' &&
+      description !== 'no further action';
+    const pendingPenalty = inf.penalty_due === 'Yes' && hasMeaningfulPenalty;
+    const appliedPenalty = inf.penalty_due === 'No' && Boolean(inf.penalty_taken) && hasMeaningfulPenalty;
+    return pendingPenalty || appliedPenalty;
+  };
+
+  // Filter infringements by kart number (exact match) and optional penalties-only filter
+  const filteredInfringements = (searchKartNumber
     ? infringements.filter((inf) => {
         const searchValue = searchKartNumber.trim();
         const kartNum = inf.kart_number.toString();
         return kartNum === searchValue || Number(kartNum) === Number(searchValue);
       })
-    : infringements;
+    : infringements
+  ).filter((inf) => (showPenaltiesOnly ? isPenaltyEntry(inf) : true));
 
   const handleExpand = () => {
     const newWindow = window.open('', '_blank', 'width=1400,height=900');
@@ -139,6 +152,14 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                 Back
               </Button>
             )}
+            <Button
+              type="button"
+              variant={showPenaltiesOnly ? 'secondary' : 'outline'}
+              onClick={() => setShowPenaltiesOnly((prev) => !prev)}
+              className="h-7 px-3 text-xs"
+            >
+              {showPenaltiesOnly ? 'Showing Penalties' : 'All Entries'}
+            </Button>
             <div className="w-40">
               <Label htmlFor="kart-search" className="sr-only">Search by Kart Number</Label>
               <Input
@@ -201,6 +222,10 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                       inf.penalty_due === 'No' &&
                       Boolean(inf.penalty_taken) &&
                       !isWarning;
+                    const turnDisplay =
+                      inf.turn_number === null || inf.turn_number === undefined || inf.turn_number === ''
+                        ? '—'
+                        : String(inf.turn_number);
 
                     const isNoFurtherAction = inf.penalty_description === 'No further action';
 
@@ -238,7 +263,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                         <td className="p-2 align-middle whitespace-nowrap sticky left-[90px] z-20 bg-card border-r pr-4">
                           {inf.kart_number}
                         </td>
-                        <td className="p-2 align-middle whitespace-nowrap">{inf.turn_number ?? '—'}</td>
+                        <td className="p-2 align-middle whitespace-nowrap">{turnDisplay}</td>
                         <td className="p-2 align-middle whitespace-nowrap">{inf.description}</td>
                         <td className="p-2 align-middle whitespace-nowrap">{inf.penalty_description ?? '—'}</td>
                         <td className="p-2 align-middle whitespace-nowrap">{inf.observer ?? '—'}</td>

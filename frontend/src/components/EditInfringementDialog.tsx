@@ -77,15 +77,15 @@ export function EditInfringementDialog({
       setObserver(infringement.observer ?? '');
       
       // Parse description to extract infringement type and second kart number
-      const description = infringement.description;
+      const description = infringement.description || '';
       let baseInfringementType = description;
       let extractedSecondKart = '';
       
       // Check if description is in format "ABC over X" or "Contact over X"
-      if (description.startsWith('ABC over ')) {
+      if (description && description.startsWith('ABC over ')) {
         baseInfringementType = 'Advantage by Contact';
         extractedSecondKart = description.replace('ABC over ', '');
-      } else if (description.startsWith('Contact over ')) {
+      } else if (description && description.startsWith('Contact over ')) {
         baseInfringementType = 'Contact';
         extractedSecondKart = description.replace('Contact over ', '');
       }
@@ -97,21 +97,22 @@ export function EditInfringementDialog({
   }, [infringement]);
 
   const handleSave = async () => {
-    if (!infringement || !kartNumber || !infringementType || !penaltyDescription) {
+    // Only kart number is required
+    if (!infringement || !kartNumber) {
       return;
     }
 
     const parsedKart = Number(kartNumber);
-    const turnNumber = turn === '' ? null : Number(turn);
+    const turnValue = turn.trim() === '' ? null : turn.trim();
     const observerValue = observer.trim() === '' ? null : observer.trim();
 
-    if (!Number.isFinite(parsedKart) || (turnNumber !== null && !Number.isFinite(turnNumber))) {
+    if (!Number.isFinite(parsedKart)) {
       return;
     }
 
     // Format description for "Advantage by Contact" or "Contact" with second kart number
-    let finalDescription = infringementType;
-    if (secondKartNumber.trim() !== '') {
+    let finalDescription: string | null = infringementType.trim() === '' ? null : infringementType;
+    if (infringementType && secondKartNumber.trim() !== '') {
       const parsedSecondKart = Number(secondKartNumber.trim());
       if (Number.isFinite(parsedSecondKart)) {
         if (infringementType === 'Advantage by Contact') {
@@ -124,11 +125,11 @@ export function EditInfringementDialog({
 
     await onSave(infringement.id, {
       kart_number: parsedKart,
-      turn_number: turnNumber,
+      turn_number: turnValue,
       description: finalDescription,
       observer: observerValue,
-      penalty_description: penaltyDescription,
-      performed_by: observerValue || 'Race Control Operator',
+      penalty_description: penaltyDescription.trim() === '' ? null : penaltyDescription,
+      performed_by: observerValue || null,
     });
     onOpenChange(false);
   };
@@ -162,13 +163,13 @@ export function EditInfringementDialog({
             </div>
 
             <div className="space-y-2">
-            <Label htmlFor="edit-turn">Turn Number</Label>
+              <Label htmlFor="edit-turn">Turn Number</Label>
               <Input
                 id="edit-turn"
-              type="number"
+                type="text"
                 value={turn}
                 onChange={(e) => setTurn(e.target.value)}
-              placeholder="e.g., 3"
+                placeholder="e.g., 3"
               />
             </div>
           </div>
@@ -190,6 +191,7 @@ export function EditInfringementDialog({
               id="edit-infringement"
               options={INFRINGEMENT_OPTIONS}
               value={infringementType}
+              forceBottom
               onValueChange={(value: string) => {
                 setInfringementType(value);
                 // Clear second kart number if not "Advantage by Contact" or "Contact"
@@ -203,8 +205,7 @@ export function EditInfringementDialog({
                   setPenaltyDescription('Warning');
                 }
               }}
-              placeholder="Select or type infringement type"
-              required
+              placeholder="Select or type infringement type (optional)"
             />
           </div>
 
@@ -227,9 +228,9 @@ export function EditInfringementDialog({
               id="edit-penaltyDescription"
               options={PENALTY_OPTIONS}
               value={penaltyDescription}
+              forceBottom
               onValueChange={setPenaltyDescription}
-              placeholder="Select or type penalty type"
-              required
+              placeholder="Select or type penalty type (optional)"
             />
           </div>
         </div>
