@@ -26,6 +26,7 @@ const INFRINGEMENT_OPTIONS = [
   'Ignoring Flags',
   'Pit Lane Speed',
   'Advantage-Exceeding track limits',
+  'Track Limits',
   'Other',
 ];
 
@@ -37,10 +38,12 @@ const PENALTY_OPTIONS = [
   'No further action',
   'Under investigation',
   'Fastest Lap Invalidation',
+  'Lap Invalidation',
   'Stop and Go',
   'Drive Through',
   'Time Penalty',
   'Disqualification',
+  'Black Flag',
 ];
 
 interface EditInfringementDialogProps {
@@ -64,6 +67,7 @@ export function EditInfringementDialog({
   const [infringementType, setInfringementType] = useState('');
   const [penaltyDescription, setPenaltyDescription] = useState('');
   const [secondKartNumber, setSecondKartNumber] = useState('');
+  const [lapNumber, setLapNumber] = useState('');
 
   // Update form values when infringement changes
   useEffect(() => {
@@ -92,7 +96,20 @@ export function EditInfringementDialog({
       
       setInfringementType(baseInfringementType);
       setSecondKartNumber(extractedSecondKart);
-      setPenaltyDescription(infringement.penalty_description ?? '');
+      
+      // Parse penalty_description to extract lap number for "Lap Invalidation"
+      const penaltyDesc = infringement.penalty_description ?? '';
+      let basePenaltyDescription = penaltyDesc;
+      let extractedLapNumber = '';
+      
+      // Check if penalty_description is in format "Lap Invalidation - Lap X"
+      if (penaltyDesc && penaltyDesc.startsWith('Lap Invalidation - Lap ')) {
+        basePenaltyDescription = 'Lap Invalidation';
+        extractedLapNumber = penaltyDesc.replace('Lap Invalidation - Lap ', '');
+      }
+      
+      setPenaltyDescription(basePenaltyDescription);
+      setLapNumber(extractedLapNumber);
     }
   }, [infringement]);
 
@@ -123,12 +140,18 @@ export function EditInfringementDialog({
       }
     }
 
+    // Format penalty_description for "Lap Invalidation" with lap number
+    let finalPenaltyDescription: string | null = penaltyDescription.trim() === '' ? null : penaltyDescription;
+    if (penaltyDescription === 'Lap Invalidation' && lapNumber.trim() !== '') {
+      finalPenaltyDescription = `Lap Invalidation - Lap ${lapNumber.trim()}`;
+    }
+
     await onSave(infringement.id, {
       kart_number: parsedKart,
       turn_number: turnValue,
       description: finalDescription,
       observer: observerValue,
-      penalty_description: penaltyDescription.trim() === '' ? null : penaltyDescription,
+      penalty_description: finalPenaltyDescription,
       performed_by: observerValue || null,
     });
     onOpenChange(false);
@@ -229,10 +252,29 @@ export function EditInfringementDialog({
               options={PENALTY_OPTIONS}
               value={penaltyDescription}
               forceBottom
-              onValueChange={setPenaltyDescription}
+              onValueChange={(value: string) => {
+                setPenaltyDescription(value);
+                // Clear lap number if not "Lap Invalidation"
+                if (value !== 'Lap Invalidation') {
+                  setLapNumber('');
+                }
+              }}
               placeholder="Select or type penalty type (optional)"
             />
           </div>
+
+          {penaltyDescription === 'Lap Invalidation' && (
+            <div className="space-y-2">
+              <Label htmlFor="edit-lapNumber">Lap Number</Label>
+              <Input
+                id="edit-lapNumber"
+                type="text"
+                value={lapNumber}
+                onChange={(e) => setLapNumber(e.target.value)}
+                placeholder="e.g., 5"
+              />
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel}>

@@ -30,6 +30,7 @@ import type {
   InfringementRecord,
   PendingPenalty,
   UpdateInfringementPayload,
+  PaginatedInfringements,
 } from './api';
 
 const DEFAULT_PERFORMED_BY = 'Race Control Operator';
@@ -50,6 +51,10 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [warningExpiryMinutes, setWarningExpiryMinutes] = useState<number>(180);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
+  const [paginationPage, setPaginationPage] = useState<number>(1);
+  const [paginationLimit, setPaginationLimit] = useState<number>(300);
+  const [paginationTotal, setPaginationTotal] = useState<number>(0);
+  const [paginationTotalPages, setPaginationTotalPages] = useState<number>(1);
   const popupWindowRef = useRef<Window | null>(null);
 
   // Fetch config from backend on mount
@@ -104,10 +109,12 @@ export default function App() {
 
         setHasActiveSession(true);
         const [infringementData, pendingData] = await Promise.all([
-          fetchInfringements(),
+          fetchInfringements(paginationPage, paginationLimit),
           fetchPendingPenalties(),
         ]);
-        setInfringements(infringementData);
+        setInfringements(infringementData.items);
+        setPaginationTotal(infringementData.total);
+        setPaginationTotalPages(infringementData.total_pages);
         setPendingPenalties(pendingData);
         setLoadError(null);
       } catch (error: any) {
@@ -132,7 +139,7 @@ export default function App() {
         }
       }
     },
-    [checkActiveSession]
+    [checkActiveSession, paginationPage, paginationLimit]
   );
 
   // Check for active session on mount and navigate if exists
@@ -230,11 +237,14 @@ export default function App() {
 
   const handleNewInfringement = async (payload: CreateInfringementPayload) => {
     try {
-      const record = await createInfringement({
+      await createInfringement({
         ...payload,
         performed_by: payload.performed_by || DEFAULT_PERFORMED_BY,
       });
-      setInfringements((prev) => [record, ...prev]);
+      // Go to page 1 to show new infringement (newest appear first)
+      setPaginationPage(1);
+      // Reload data to show new infringement
+      await loadData(false);
       const pending = await fetchPendingPenalties();
       setPendingPenalties(pending);
       toast.success('Infringement created successfully');
@@ -342,6 +352,15 @@ export default function App() {
   const handleBackToSessions = () => {
     setCurrentView('sessions');
     setActiveSessionName(null);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPaginationPage(newPage);
+  };
+
+  const handlePageSizeChange = (newLimit: number) => {
+    setPaginationLimit(newLimit);
+    setPaginationPage(1); // Reset to first page when changing page size
   };
 
   return (
@@ -457,6 +476,14 @@ export default function App() {
             warningExpiryMinutes={warningExpiryMinutes}
             onPopupOpened={(window) => {
               popupWindowRef.current = window;
+            }}
+            pagination={{
+              page: paginationPage,
+              limit: paginationLimit,
+              total: paginationTotal,
+              totalPages: paginationTotalPages,
+              onPageChange: handlePageChange,
+              onPageSizeChange: handlePageSizeChange,
             }}
           />
 

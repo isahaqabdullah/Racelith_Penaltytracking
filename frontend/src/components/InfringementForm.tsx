@@ -20,6 +20,7 @@ const INFRINGEMENT_OPTIONS = [
   'Ignoring Flags',
   'Pit Lane Speed',
   'Advantage-Exceeding track limits',
+  'Track Limits',
   'Other',
 ];
 
@@ -31,10 +32,12 @@ const PENALTY_OPTIONS = [
   'No further action',
   'Under investigation',
   'Fastest Lap Invalidation',
+  'Lap Invalidation',
   'Stop and Go',
   'Drive Through',
   'Time Penalty',
   'Disqualification',
+  'Black Flag',
 ];
 
 interface InfringementFormProps {
@@ -48,6 +51,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
   const [infringement, setInfringement] = useState('');
   const [penaltyDescription, setPenaltyDescription] = useState('');
   const [secondKartNumber, setSecondKartNumber] = useState('');
+  const [lapNumber, setLapNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -79,6 +83,12 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
       }
     }
 
+    // Format penalty_description for "Lap Invalidation" with lap number
+    let finalPenaltyDescription: string | null = penaltyDescription.trim() === '' ? null : penaltyDescription;
+    if (penaltyDescription === 'Lap Invalidation' && lapNumber.trim() !== '') {
+      finalPenaltyDescription = `Lap Invalidation - Lap ${lapNumber.trim()}`;
+    }
+
     try {
       setIsSubmitting(true);
       await onSubmit({
@@ -86,7 +96,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
         turn_number: turnValue,
         description: finalDescription,
         observer: observerValue,
-        penalty_description: penaltyDescription.trim() === '' ? null : penaltyDescription,
+        penalty_description: finalPenaltyDescription,
         performed_by: observerValue || null,
       });
 
@@ -96,6 +106,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
       setInfringement('');
       setPenaltyDescription('');
       setSecondKartNumber('');
+      setLapNumber('');
     } finally {
       setIsSubmitting(false);
     }
@@ -212,10 +223,29 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
               id="penaltyDescription"
               options={PENALTY_OPTIONS}
               value={penaltyDescription}
-              onValueChange={setPenaltyDescription}
+              onValueChange={(value: string) => {
+                setPenaltyDescription(value);
+                // Clear lap number if not "Lap Invalidation"
+                if (value !== 'Lap Invalidation') {
+                  setLapNumber('');
+                }
+              }}
               placeholder="Select or type penalty type "
             />
           </div>
+
+          {penaltyDescription === 'Lap Invalidation' && (
+            <div className="space-y-3">
+              <Label htmlFor="lapNumber">Lap Number</Label>
+              <Input
+                id="lapNumber"
+                type="text"
+                value={lapNumber}
+                onChange={(e) => setLapNumber(e.target.value)}
+                placeholder="e.g., 5"
+              />
+            </div>
+          )}
 
           <div className="pt-2">
             <Button type="submit" className="w-full">

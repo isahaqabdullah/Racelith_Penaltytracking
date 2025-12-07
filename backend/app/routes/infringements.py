@@ -175,37 +175,54 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
         )
 
 
-@router.get("/", response_model=list[InfringementResponse])
-def list_infringements(db: Session = Depends(get_db)):
-    """List all infringements in the active session database."""
+@router.get("/")
+def list_infringements(
+    page: int = 1,
+    limit: int = 300,
+    db: Session = Depends(get_db)
+):
+    """List infringements in the active session database with pagination."""
     try:
         # Log the database URL being used
         db_url = str(db.bind.url) if hasattr(db.bind, 'url') else 'unknown'
-        logger.info(f"list_infringements: Using database: {db_url}")
+        logger.info(f"list_infringements: Using database: {db_url}, page={page}, limit={limit}")
         
         # Ensure we're in a fresh transaction - commit any pending changes
         db.commit()
         
-        # First, try to get a count using a raw query to bypass any caching
-        count = db.query(Infringement).count()
-        logger.info(f"list_infringements: Count query returned {count} infringements")
+        # Validate pagination parameters
+        if page < 1:
+            page = 1
+        if limit < 1:
+            limit = 300
+        if limit > 1000:
+            limit = 1000  # Max limit to prevent abuse
         
-        # If count is 0, try a direct SQL query to verify
-        if count == 0:
-            from sqlalchemy import text
-            result = db.execute(text("SELECT COUNT(*) FROM infringements")).scalar()
-            logger.info(f"list_infringements: Direct SQL count: {result}")
-            if result > 0:
-                logger.warning(f"⚠️ SQL count shows {result} but ORM count shows 0 - possible ORM caching issue")
+        # Get total count
+        total_count = db.query(Infringement).count()
+        logger.info(f"list_infringements: Total count: {total_count}")
         
-        # Then get all
-        infringements = db.query(Infringement).order_by(Infringement.timestamp.desc()).all()
-        logger.info(f"list_infringements: Found {len(infringements)} infringements (count was {count})")
+        # Calculate pagination
+        offset = (page - 1) * limit
+        total_pages = (total_count + limit - 1) // limit if total_count > 0 else 1
         
-        if len(infringements) == 0 and count > 0:
-            logger.warning(f"⚠️ Count shows {count} but query returned 0 - possible transaction issue")
+        # Fetch paginated results
+        infringements = db.query(Infringement)\
+            .order_by(Infringement.timestamp.desc())\
+            .offset(offset)\
+            .limit(limit)\
+            .all()
         
-        return infringements
+        logger.info(f"list_infringements: Returning {len(infringements)} infringements (page {page}/{total_pages})")
+        
+        # Return with pagination metadata
+        return {
+            "items": infringements,
+            "total": total_count,
+            "page": page,
+            "limit": limit,
+            "total_pages": total_pages
+        }
     except (ProgrammingError, OperationalError) as e:
         handle_db_error(e)
     except Exception as e:

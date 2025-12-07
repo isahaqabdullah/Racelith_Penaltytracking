@@ -4,10 +4,20 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Pencil, Trash2, Maximize2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Pencil, Trash2, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { InfringementRecord } from '../api';
 import { API_BASE } from '../api';
 import { generatePopupHTML } from './popup/popupTemplate';
+
+interface PaginationProps {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (limit: number) => void;
+}
 
 interface InfringementLogProps {
   infringements: InfringementRecord[];
@@ -15,9 +25,10 @@ interface InfringementLogProps {
   onDelete: (id: number) => void;
   warningExpiryMinutes?: number;
   onPopupOpened?: (window: Window) => void;
+  pagination?: PaginationProps;
 }
 
-export function InfringementLog({ infringements, onEdit, onDelete, warningExpiryMinutes = 180, onPopupOpened }: InfringementLogProps) {
+export function InfringementLog({ infringements, onEdit, onDelete, warningExpiryMinutes = 180, onPopupOpened, pagination }: InfringementLogProps) {
   const [searchKartNumber, setSearchKartNumber] = useState('');
   const [showPenaltiesOnly, setShowPenaltiesOnly] = useState(false);
   const popupWindowRef = useRef<Window | null>(null);
@@ -160,6 +171,54 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
             >
               {showPenaltiesOnly ? 'Showing Penalties' : 'All Entries'}
             </Button>
+            {pagination && (
+              <>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="page-size" className="text-xs text-muted-foreground whitespace-nowrap">
+                    Entries:
+                  </Label>
+                  <Select
+                    value={pagination.limit.toString()}
+                    onValueChange={(value: string) => pagination.onPageSizeChange(Number(value))}
+                  >
+                    <SelectTrigger id="page-size" className="h-7 w-20 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="100">100</SelectItem>
+                      <SelectItem value="200">200</SelectItem>
+                      <SelectItem value="300">300</SelectItem>
+                      <SelectItem value="500">500</SelectItem>
+                      <SelectItem value="1000">1000</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <span>Page</span>
+                  <span className="font-medium text-foreground">{pagination.page}</span>
+                  <span>of</span>
+                  <span className="font-medium text-foreground">{pagination.totalPages}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => pagination.onPageChange(pagination.page - 1)}
+                  disabled={pagination.page <= 1}
+                  className="h-7 px-2"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => pagination.onPageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages}
+                  className="h-7 px-2"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </Button>
+              </>
+            )}
             <div className="w-40">
               <Label htmlFor="kart-search" className="sr-only">Search by Kart Number</Label>
               <Input
@@ -301,6 +360,13 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
             </table>
           </div>
         </div>
+        {pagination && (
+          <div className="px-6 py-2 border-t bg-card">
+            <div className="text-xs text-muted-foreground">
+              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} entries
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

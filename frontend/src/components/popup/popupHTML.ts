@@ -62,6 +62,7 @@ export const popupHTML = `
           <option value="Unsafe Re-entry">Unsafe Re-entry</option>
           <option value="Ignoring Flags">Ignoring Flags</option>
           <option value="Pit Lane Speed">Pit Lane Speed</option>
+          <option value="Track Limits">Track Limits</option>
           <option value="Other">Other</option>
         </select>
       </div>
@@ -73,10 +74,12 @@ export const popupHTML = `
           <option value="5 Sec">5 Sec</option>
           <option value="10 Sec">10 Sec</option>
           <option value="Fastest Lap Invalidation">Fastest Lap Invalidation</option>
+          <option value="Lap Invalidation">Lap Invalidation</option>
           <option value="Stop and Go">Stop and Go</option>
           <option value="Drive Through">Drive Through</option>
           <option value="Time Penalty">Time Penalty</option>
           <option value="Disqualification">Disqualification</option>
+          <option value="Black Flag">Black Flag</option>
         </select>
       </div>
       <div class="modal-footer">

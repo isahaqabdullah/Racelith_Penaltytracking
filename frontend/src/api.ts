@@ -114,8 +114,16 @@ export interface ApplyPenaltyResponse {
   penalty_description?: string | null;
 }
 
-export async function fetchInfringements(): Promise<InfringementRecord[]> {
-  return request<InfringementRecord[]>(`/infringements/`);
+export interface PaginatedInfringements {
+  items: InfringementRecord[];
+  total: number;
+  page: number;
+  limit: number;
+  total_pages: number;
+}
+
+export async function fetchInfringements(page: number = 1, limit: number = 300): Promise<PaginatedInfringements> {
+  return request<PaginatedInfringements>(`/infringements/?page=${page}&limit=${limit}`);
 }
 
 export async function createInfringement(
