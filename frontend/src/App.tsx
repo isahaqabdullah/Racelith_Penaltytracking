@@ -392,36 +392,6 @@ export default function App() {
                   <Button variant="outline" onClick={handleBackToSessions}>
                     ← Back to Sessions
                   </Button>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="warning-expiry" className="text-xs text-muted-foreground whitespace-nowrap">
-                      Warning Expiry (min):
-                    </Label>
-                    <Input
-                      id="warning-expiry"
-                      type="number"
-                      min="1"
-                      value={warningExpiryMinutes}
-                      onChange={async (e) => {
-                        const value = parseInt(e.target.value, 10);
-                        if (!isNaN(value) && value > 0) {
-                          setWarningExpiryMinutes(value);
-                          try {
-                            await updateConfig({ warning_expiry_minutes: value });
-                            toast.success('Warning expiry updated successfully');
-                          } catch (error: any) {
-                            console.error('Failed to update config:', error);
-                            toast.error('Error Updating Config', {
-                              description: error?.message || 'Failed to update warning expiry',
-                            });
-                            // Revert to previous value on error
-                            const config = await getConfig();
-                            setWarningExpiryMinutes(config.warning_expiry_minutes);
-                          }
-                        }
-                      }}
-                      className="w-20 h-8 text-sm"
-                    />
-                  </div>
                 </div>
               </div>
             )}
