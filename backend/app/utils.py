@@ -13,6 +13,108 @@ logger = logging.getLogger(__name__)
 
 # --- Utility Functions ---
 
+def validate_session_name(session_name: str) -> None:
+    """
+    Validate session name according to naming conventions.
+    
+    Naming Conventions:
+    - Session names are converted to database names: {name.lower().replace(' ', '_')}_db
+    - Must be 1-59 characters long (to allow for "_db" suffix, max PostgreSQL identifier is 63 chars)
+    - Can contain letters, numbers, spaces, underscores, and hyphens
+    - Cannot start or end with a space
+    - Cannot contain consecutive spaces
+    - After conversion to database name, must start with a letter or underscore
+    - After conversion, can only contain lowercase letters, numbers, and underscores
+    
+    Raises ValueError with descriptive error message if validation fails.
+    """
+    if not session_name:
+        raise ValueError("Session name cannot be empty")
+    
+    # Trim whitespace
+    session_name = session_name.strip()
+    
+    if not session_name:
+        raise ValueError("Session name cannot be empty or contain only whitespace")
+    
+    # Check length (max 59 chars to allow for "_db" suffix = 63 total)
+    if len(session_name) > 59:
+        raise ValueError(
+            f"Session name is too long ({len(session_name)} characters). "
+            "Maximum length is 59 characters (to allow for database name conversion)."
+        )
+    
+    # Check for leading/trailing spaces (after strip, this shouldn't happen, but check anyway)
+    if session_name != session_name.strip():
+        raise ValueError("Session name cannot start or end with spaces")
+    
+    # Check for consecutive spaces
+    if "  " in session_name:
+        raise ValueError("Session name cannot contain consecutive spaces")
+    
+    # Convert to database name format to validate
+    db_name = f"{session_name.lower().replace(' ', '_')}_db"
+    
+    # Double-check database name length (PostgreSQL limit is 63 characters)
+    if len(db_name) > 63:
+        raise ValueError(
+            f"Session name '{session_name}' would create a database name '{db_name}' "
+            f"that exceeds PostgreSQL's 63 character limit ({len(db_name)} characters)."
+        )
+    
+    # Check if database name starts with letter or underscore
+    if not (db_name[0].isalpha() or db_name[0] == '_'):
+        raise ValueError(
+            "Session name must start with a letter (after conversion to database name). "
+            "Names starting with numbers or special characters are not allowed."
+        )
+    
+    # Check for invalid characters in database name
+    # PostgreSQL allows: letters, digits, underscores, dollar signs
+    # We're converting spaces to underscores, so check the original name
+    invalid_chars = set()
+    for char in session_name:
+        if not (char.isalnum() or char in (' ', '_', '-')):
+            invalid_chars.add(char)
+    
+    if invalid_chars:
+        invalid_str = ', '.join(f"'{c}'" for c in sorted(invalid_chars))
+        raise ValueError(
+            f"Session name contains invalid characters: {invalid_str}. "
+            "Allowed characters: letters, numbers, spaces, underscores, and hyphens."
+        )
+    
+    # Check if database name would be a PostgreSQL reserved keyword (common ones)
+    # Note: This is not exhaustive, but covers common cases
+    reserved_keywords = {
+        'select', 'insert', 'update', 'delete', 'create', 'drop', 'alter',
+        'table', 'database', 'index', 'view', 'user', 'role', 'grant', 'revoke',
+        'where', 'from', 'join', 'inner', 'outer', 'left', 'right', 'on',
+        'group', 'order', 'by', 'having', 'limit', 'offset', 'distinct',
+        'and', 'or', 'not', 'in', 'like', 'between', 'is', 'null', 'true', 'false',
+        'as', 'case', 'when', 'then', 'else', 'end', 'if', 'else', 'while',
+        'begin', 'commit', 'rollback', 'transaction', 'savepoint',
+        'primary', 'key', 'foreign', 'references', 'constraint', 'unique',
+        'check', 'default', 'values', 'set', 'into', 'union', 'all', 'except',
+        'intersect', 'exists', 'any', 'some', 'all', 'over', 'partition',
+        'window', 'rows', 'range', 'preceding', 'following', 'current', 'row',
+        'rank', 'dense_rank', 'row_number', 'lead', 'lag', 'first_value',
+        'last_value', 'count', 'sum', 'avg', 'min', 'max', 'stddev', 'variance',
+        'array', 'json', 'jsonb', 'text', 'varchar', 'char', 'int', 'integer',
+        'bigint', 'smallint', 'numeric', 'decimal', 'real', 'double', 'precision',
+        'float', 'boolean', 'date', 'time', 'timestamp', 'interval', 'zone',
+        'serial', 'bigserial', 'uuid', 'bytea', 'point', 'line', 'lseg', 'box',
+        'path', 'polygon', 'circle', 'inet', 'cidr', 'macaddr', 'tsvector',
+        'tsquery', 'xml', 'pg_lsn', 'txid_snapshot', 'pg_snapshot'
+    }
+    
+    db_name_base = db_name[:-3]  # Remove "_db" suffix
+    if db_name_base.lower() in reserved_keywords:
+        raise ValueError(
+            f"Session name '{session_name}' cannot be used because it would create a database name "
+            f"('{db_name}') that conflicts with a PostgreSQL reserved keyword."
+        )
+
 def safe_filename(name: str) -> str:
     """
     Sanitize a string to be filesystem-safe.

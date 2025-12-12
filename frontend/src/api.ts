@@ -45,10 +45,25 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(
-      `Request failed (${response.status} ${response.statusText}): ${message}`
-    );
+    let errorMessage = '';
+    const contentType = response.headers.get('content-type');
+    
+    // Try to parse as JSON first (FastAPI returns JSON errors)
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        const errorData = await response.json();
+        // FastAPI error format: { "detail": "error message" }
+        errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
+      } catch {
+        // Fall back to text if JSON parsing fails
+        errorMessage = await response.text();
+      }
+    } else {
+      // Fall back to text for non-JSON responses
+      errorMessage = await response.text();
+    }
+    
+    throw new Error(errorMessage || `Request failed (${response.status} ${response.statusText})`);
   }
 
   if (!parseJson) {
@@ -218,10 +233,25 @@ export async function importSession(file: File): Promise<{ status: string; sessi
   });
 
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(
-      `Import failed (${response.status} ${response.statusText}): ${message}`
-    );
+    let errorMessage = '';
+    const contentType = response.headers.get('content-type');
+    
+    // Try to parse as JSON first (FastAPI returns JSON errors)
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        const errorData = await response.json();
+        // FastAPI error format: { "detail": "error message" }
+        errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
+      } catch {
+        // Fall back to text if JSON parsing fails
+        errorMessage = await response.text();
+      }
+    } else {
+      // Fall back to text for non-JSON responses
+      errorMessage = await response.text();
+    }
+    
+    throw new Error(errorMessage || `Import failed (${response.status} ${response.statusText})`);
   }
 
   return (await response.json()) as { status: string; session_name: string; imported: { infringements: number; history: number } };
@@ -242,10 +272,25 @@ export async function exportSession(
     console.log('📥 Response received:', { status: response.status, statusText: response.statusText, ok: response.ok });
 
     if (!response.ok) {
-      const message = await response.text();
-      throw new Error(
-        `Export failed (${response.status} ${response.statusText}): ${message}`
-      );
+      let errorMessage = '';
+      const contentType = response.headers.get('content-type');
+      
+      // Try to parse as JSON first (FastAPI returns JSON errors)
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          const errorData = await response.json();
+          // FastAPI error format: { "detail": "error message" }
+          errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
+        } catch {
+          // Fall back to text if JSON parsing fails
+          errorMessage = await response.text();
+        }
+      } else {
+        // Fall back to text for non-JSON responses
+        errorMessage = await response.text();
+      }
+      
+      throw new Error(errorMessage || `Export failed (${response.status} ${response.statusText})`);
     }
 
     // Get filename from Content-Disposition header or generate one

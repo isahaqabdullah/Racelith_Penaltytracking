@@ -24,6 +24,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { Calendar, Plus, Play, Trash2, Loader2, RefreshCw, Download, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   API_BASE,
   listSessions,
@@ -56,6 +57,7 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -95,15 +97,18 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
 
   const handleCreateSession = async () => {
     if (!newSessionName.trim()) {
+      setCreateError('Session name cannot be empty');
       return;
     }
 
     try {
       setIsCreating(true);
+      setCreateError(null);
       const sessionName = newSessionName.trim();
       await startSession(sessionName);
       setCreateDialogOpen(false);
       setNewSessionName('');
+      setCreateError(null);
       await loadSessions();
       if (onSessionChange) {
         onSessionChange();
@@ -111,9 +116,18 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
       if (onSessionCreatedOrLoaded) {
         onSessionCreatedOrLoaded(sessionName);
       }
-    } catch (error) {
+      toast.success('Session created successfully', {
+        description: `Session "${sessionName}" has been created and activated.`,
+      });
+    } catch (error: any) {
       console.error('Failed to create session', error);
-      alert('Failed to create session. It may already exist.');
+      // Error message is already extracted by API function
+      const errorMessage = error?.message || 'Failed to create session';
+      setCreateError(errorMessage);
+      toast.error('Failed to Create Session', {
+        description: errorMessage,
+        duration: 5000,
+      });
     } finally {
       setIsCreating(false);
     }
@@ -130,9 +144,16 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
       if (onSessionCreatedOrLoaded) {
         onSessionCreatedOrLoaded(name);
       }
-    } catch (error) {
+      toast.success('Session loaded successfully', {
+        description: `Session "${name}" has been activated.`,
+      });
+    } catch (error: any) {
       console.error('Failed to load session', error);
-      alert('Failed to load session.');
+      const errorMessage = error?.message || 'Failed to load session';
+      toast.error('Failed to Load Session', {
+        description: errorMessage,
+        duration: 5000,
+      });
     } finally {
       setIsLoadingSession(false);
     }
@@ -169,9 +190,13 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
       if (onSessionChange) {
         onSessionChange();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete session', error);
-      alert('Failed to delete session.');
+      const errorMessage = error?.message || 'Failed to delete session';
+      toast.error('Failed to Delete Session', {
+        description: errorMessage,
+        duration: 5000,
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -184,10 +209,13 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
       console.log(`📤 Starting export: "${sessionName}" as ${format}...`);
       await exportSession(sessionName, format);
       console.log(`✅ Successfully exported session "${sessionName}" as ${format}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to export session', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Failed to export session as ${format.toUpperCase()}.\n\nError: ${errorMessage}`);
+      const errorMessage = error?.message || 'Unknown error';
+      toast.error(`Failed to Export Session as ${format.toUpperCase()}`, {
+        description: errorMessage,
+        duration: 5000,
+      });
     } finally {
       setExportingSession(null);
       console.log('🏁 Export process finished');
@@ -216,10 +244,13 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
         `Infringements: ${result.imported.infringements}\n` +
         `History records: ${result.imported.history}`
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to import session', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Failed to import session.\n\nError: ${errorMessage}`);
+      const errorMessage = error?.message || 'Failed to import session';
+      toast.error('Failed to Import Session', {
+        description: errorMessage,
+        duration: 6000,
+      });
     } finally {
       setIsImporting(false);
     }
@@ -412,7 +443,13 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
       </Card>
 
       {/* Create Session Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+      <Dialog open={createDialogOpen} onOpenChange={(open) => {
+        setCreateDialogOpen(open);
+        if (!open) {
+          setCreateError(null);
+          setNewSessionName('');
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Session</DialogTitle>
@@ -423,14 +460,24 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
               <Input
                 id="session-name"
                 value={newSessionName}
-                onChange={(e) => setNewSessionName(e.target.value)}
+                onChange={(e) => {
+                  setNewSessionName(e.target.value);
+                  setCreateError(null); // Clear error when user types
+                }}
                 placeholder="e.g., Race Day 2024-01-15"
+                className={createError ? 'border-destructive' : ''}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newSessionName.trim()) {
                     void handleCreateSession();
                   }
                 }}
               />
+              {createError && (
+                <p className="text-sm text-destructive mt-1">{createError}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Session name must be 1-59 characters, can contain letters, numbers, spaces, underscores, and hyphens.
+              </p>
             </div>
           </div>
           <DialogFooter>

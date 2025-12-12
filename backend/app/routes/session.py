@@ -17,7 +17,7 @@ from .. import database as database_module
 from ..models import SessionInfo, Infringement, InfringementHistory
 from ..ws_manager import manager
 from ..vars import SESSION_EXPORT_DIR
-from ..utils import export_session_data, export_session_csv, export_session_excel, import_session_excel, import_session_csv
+from ..utils import export_session_data, export_session_csv, export_session_excel, import_session_excel, import_session_csv, validate_session_name
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -35,9 +35,22 @@ def start_session(name: str, background_tasks: BackgroundTasks = None):
     - Create a per-session database
     - Close any previous active session
     - Add record to control DB and switch active DB
+    
+    Session Name Conventions:
+    - 1-59 characters long
+    - Can contain letters, numbers, spaces, underscores, and hyphens
+    - Cannot start or end with spaces
+    - Cannot contain consecutive spaces
+    - Must start with a letter (after conversion to database name)
     """
     db = ControlSessionLocal()
     try:
+        # --- Step 0: Validate session name ---
+        try:
+            validate_session_name(name)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
         # --- Step 1: Create per-session DB ---
         try:
             create_session_db(name)
@@ -80,9 +93,22 @@ def load_session(name: str, background_tasks: BackgroundTasks = None):
     Load an existing session:
     - Switch to the per-session DB
     - Mark it as active in control DB
+    
+    Session Name Conventions:
+    - 1-59 characters long
+    - Can contain letters, numbers, spaces, underscores, and hyphens
+    - Cannot start or end with spaces
+    - Cannot contain consecutive spaces
+    - Must start with a letter (after conversion to database name)
     """
     db = ControlSessionLocal()
     try:
+        # --- Step 0: Validate session name ---
+        try:
+            validate_session_name(name)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
         # --- Step 1: Switch DB ---
         try:
             switch_session_db(name)
@@ -122,9 +148,22 @@ def close_session(name: str, background_tasks: BackgroundTasks = None):
     """
     Close an active session:
     - Marks session as closed in the control DB.
+    
+    Session Name Conventions:
+    - 1-59 characters long
+    - Can contain letters, numbers, spaces, underscores, and hyphens
+    - Cannot start or end with spaces
+    - Cannot contain consecutive spaces
+    - Must start with a letter (after conversion to database name)
     """
     db = ControlSessionLocal()
     try:
+        # --- Step 0: Validate session name ---
+        try:
+            validate_session_name(name)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
         db.query(SessionInfo).filter(SessionInfo.name == name).update({SessionInfo.status: "closed"})
         db.commit()
 
@@ -170,9 +209,22 @@ def delete_session(name: str, background_tasks: BackgroundTasks = None):
     Delete a session completely:
     - Drops the per-session database.
     - Removes its record from the control DB.
+    
+    Session Name Conventions:
+    - 1-59 characters long
+    - Can contain letters, numbers, spaces, underscores, and hyphens
+    - Cannot start or end with spaces
+    - Cannot contain consecutive spaces
+    - Must start with a letter (after conversion to database name)
     """
     db = ControlSessionLocal()
     try:
+        # --- Step 0: Validate session name ---
+        try:
+            validate_session_name(name)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        
         session_db_name = f"{name.lower().replace(' ', '_')}_db"
 
         # --- Step 1: Drop the session database ---
@@ -229,11 +281,24 @@ def export_session(name: str, format: str = "json"):
     - excel: Excel format (.xlsx) with formatted sheets
     
     Returns the exported file for download.
+    
+    Session Name Conventions:
+    - 1-59 characters long
+    - Can contain letters, numbers, spaces, underscores, and hyphens
+    - Cannot start or end with spaces
+    - Cannot contain consecutive spaces
+    - Must start with a letter (after conversion to database name)
     """
     # Validate format
     format = format.lower()
     if format not in ["json", "csv", "excel"]:
         raise HTTPException(status_code=400, detail="Format must be 'json', 'csv', or 'excel'")
+    
+    # Validate session name
+    try:
+        validate_session_name(name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     
     # Check if session exists
     db = ControlSessionLocal()
@@ -399,6 +464,12 @@ def import_session(
         
         if not session_name:
             raise HTTPException(status_code=400, detail="Could not determine session name from file")
+        
+        # Validate session name
+        try:
+            validate_session_name(session_name)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid session name from file: {str(e)}")
         
         # Check if session already exists
         existing_session = db.query(SessionInfo).filter(SessionInfo.name == session_name).first()
