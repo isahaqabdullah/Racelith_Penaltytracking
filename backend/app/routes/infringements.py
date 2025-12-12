@@ -47,6 +47,7 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
     """
     Create an infringement with proper warning/penalty logic.
     - White line: accumulates warnings (expire after 180 minutes), 3 warnings = penalty.
+    - Yellow zone: accumulates warnings (expire after 180 minutes), 3 warnings = penalty.
     - All other infringements: use penalty_description from payload if provided.
     """
     try:
@@ -93,6 +94,48 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
                 ).order_by(Infringement.timestamp.desc()).all()
 
                 warning_count = len(valid_white_infringements) + 1  # +1 for current one
+
+                if warning_count >= 3:
+                    penalty_due = "Yes"
+                    penalty_description = "5 sec Stop & Go"
+                else:
+                    penalty_due = "No"
+                    penalty_description = "Warning"
+
+        elif desc_lower and "yellow zone" in desc_lower:
+            # Yellow zone: honor provided penalty_description; only run warning accumulation when it's a warning
+            incoming_penalty = (payload.penalty_description or "").strip()
+            if incoming_penalty and incoming_penalty.lower() != "warning":
+                warning_count = 1
+                # "No further action" means no penalty is due
+                if incoming_penalty.lower() == "no further action":
+                    penalty_due = "No"
+                else:
+                    penalty_due = "Yes"
+                penalty_description = incoming_penalty
+            else:
+                # Warning path: special accumulation (180 min expiry, 3 warnings = penalty)
+                # Only count warnings that haven't triggered a penalty yet (penalty_due != "Yes")
+                # This allows the warning count to reset after a penalty is issued
+                # Yellow zone is tracked separately from white line
+                last_penalty = db.query(Infringement).filter(
+                    Infringement.kart_number == payload.kart_number,
+                    Infringement.description.ilike("%yellow zone%"),
+                    Infringement.penalty_due == "Yes"
+                ).order_by(Infringement.timestamp.desc()).first()
+
+                cycle_start = expiry_threshold
+                if last_penalty:
+                    cycle_start = max(expiry_threshold, last_penalty.timestamp)
+
+                valid_yellow_infringements = db.query(Infringement).filter(
+                    Infringement.kart_number == payload.kart_number,
+                    Infringement.description.ilike("%yellow zone%"),
+                    Infringement.timestamp >= cycle_start,
+                    Infringement.penalty_due != "Yes"  # Exclude infringements that already triggered a penalty
+                ).order_by(Infringement.timestamp.desc()).all()
+
+                warning_count = len(valid_yellow_infringements) + 1  # +1 for current one
 
                 if warning_count >= 3:
                     penalty_due = "Yes"
@@ -292,6 +335,51 @@ def update_infringement(
             else:
                 penalty_due = "No"
                 penalty_description = "Warning"
+
+        elif desc_lower and "yellow zone" in desc_lower:
+            # Yellow zone: honor provided penalty_description; only run warning accumulation when it's a warning
+            incoming_penalty = (payload.penalty_description or "").strip()
+            if incoming_penalty and incoming_penalty.lower() != "warning":
+                warning_count = 1
+                # "No further action" means no penalty is due
+                if incoming_penalty.lower() == "no further action":
+                    penalty_due = "No"
+                else:
+                    penalty_due = "Yes"
+                penalty_description = incoming_penalty
+            else:
+                # Warning path: special accumulation (180 min expiry, 3 warnings = penalty)
+                # Get *non-expired* yellow zone infringements for this kart (excluding current one)
+                # Only count warnings that haven't triggered a penalty yet (penalty_due != "Yes")
+                # This allows the warning count to reset after a penalty is issued
+                # Yellow zone is tracked separately from white line
+                last_penalty = db.query(Infringement).filter(
+                    Infringement.kart_number == payload.kart_number,
+                    Infringement.description.ilike("%yellow zone%"),
+                    Infringement.penalty_due == "Yes",
+                    Infringement.id != inf.id,
+                ).order_by(Infringement.timestamp.desc()).first()
+
+                cycle_start = expiry_threshold
+                if last_penalty:
+                    cycle_start = max(expiry_threshold, last_penalty.timestamp)
+
+                valid_yellow_infringements = db.query(Infringement).filter(
+                    Infringement.kart_number == payload.kart_number,
+                    Infringement.description.ilike("%yellow zone%"),
+                    Infringement.timestamp >= cycle_start,
+                    Infringement.id != inf.id,
+                    Infringement.penalty_due != "Yes"  # Exclude infringements that already triggered a penalty
+                ).order_by(Infringement.timestamp.desc()).all()
+
+                warning_count = len(valid_yellow_infringements) + 1  # +1 for current one
+
+                if warning_count >= 3:
+                    penalty_due = "Yes"
+                    penalty_description = "5 sec Stop & Go"
+                else:
+                    penalty_due = "No"
+                    penalty_description = "Warning"
         else:
             # All other infringements (yellow zone, generic, etc.): use penalty_description from payload
             warning_count = 1
