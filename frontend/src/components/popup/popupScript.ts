@@ -94,13 +94,17 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     }
 
     try {
-      console.log("Fetching from:", API_BASE + "/infringements/");
-      const response = await fetch(API_BASE + "/infringements/");
+      // Fetch with high limit to get all infringements for popup display
+      console.log("Fetching from:", API_BASE + "/infringements/?page=1&limit=1000");
+      const response = await fetch(API_BASE + "/infringements/?page=1&limit=1000");
       if (!response.ok) {
         throw new Error("Failed: " + response.status + " " + response.statusText);
       }
 
-      const data = await response.json();
+      const responseData = await response.json();
+      // Handle paginated response format: { items: [...], total: ..., page: ..., limit: ..., total_pages: ... }
+      // Or legacy array format for backwards compatibility
+      const data = Array.isArray(responseData) ? responseData : (responseData.items || []);
       console.log("Fetched data:", data.length, "infringements");
       const searchInput = document.getElementById("searchInput");
       const backBtn = document.getElementById("backBtn");
@@ -156,12 +160,16 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
   // Handle edit button click
   window.handleEdit = async function(id) {
     try {
-      const response = await fetch(API_BASE + "/infringements/");
+      // Fetch with high limit to get all infringements for editing
+      const response = await fetch(API_BASE + "/infringements/?page=1&limit=1000");
       if (!response.ok) {
         throw new Error("Failed to fetch");
       }
 
-      const data = await response.json();
+      const responseData = await response.json();
+      // Handle paginated response format: { items: [...], total: ..., page: ..., limit: ..., total_pages: ... }
+      // Or legacy array format for backwards compatibility
+      const data = Array.isArray(responseData) ? responseData : (responseData.items || []);
       const inf = data.find(i => i.id === Number(id) || i.id === id);
       
       if (!inf) {
@@ -172,8 +180,54 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       document.getElementById("editKart").value = inf.kart_number || "";
       document.getElementById("editTurn").value = inf.turn_number || "";
       document.getElementById("editObserver").value = inf.observer || "";
-      document.getElementById("editInfringement").value = inf.description || "";
-      document.getElementById("editPenalty").value = inf.penalty_description || "";
+      
+      // Parse description to extract infringement type and second kart number
+      const description = inf.description || "";
+      let baseInfringementType = description;
+      let extractedSecondKart = "";
+      
+      // Check if description is in format "ABC over X" or "Contact over X"
+      if (description && description.startsWith("ABC over ")) {
+        baseInfringementType = "Advantage by Contact";
+        extractedSecondKart = description.replace("ABC over ", "");
+      } else if (description && description.startsWith("Contact over ")) {
+        baseInfringementType = "Contact";
+        extractedSecondKart = description.replace("Contact over ", "");
+      }
+      
+      document.getElementById("editInfringement").value = baseInfringementType;
+      document.getElementById("editSecondKart").value = extractedSecondKart;
+      
+      // Show/hide second kart field
+      const secondKartGroup = document.getElementById("secondKartGroup");
+      if (baseInfringementType === "Advantage by Contact" || baseInfringementType === "Contact") {
+        secondKartGroup.style.display = "block";
+      } else {
+        secondKartGroup.style.display = "none";
+      }
+      
+      // Parse penalty_description to extract lap number for "Lap Invalidation"
+      const penaltyDesc = inf.penalty_description || "";
+      let basePenaltyDescription = penaltyDesc;
+      let extractedLapNumber = "";
+      
+      // Check if penalty_description is in format "Lap Invalidation - Lap X"
+      if (penaltyDesc && penaltyDesc.startsWith("Lap Invalidation - Lap ")) {
+        basePenaltyDescription = "Lap Invalidation";
+        extractedLapNumber = penaltyDesc.replace("Lap Invalidation - Lap ", "");
+      }
+      
+      document.getElementById("editPenalty").value = basePenaltyDescription;
+      document.getElementById("editLapNumber").value = extractedLapNumber;
+      
+      // Show/hide lap number field
+      const lapNumberGroup = document.getElementById("lapNumberGroup");
+      if (basePenaltyDescription === "Lap Invalidation") {
+        lapNumberGroup.style.display = "block";
+      } else {
+        lapNumberGroup.style.display = "none";
+      }
+      
       document.getElementById("editModal").classList.add("show");
     } catch (error) {
       console.error("Edit error:", error);
@@ -207,30 +261,92 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     }
   };
 
+  // Handle infringement type change to show/hide second kart field
+  function handleInfringementChange() {
+    const infringementType = document.getElementById("editInfringement").value;
+    const secondKartGroup = document.getElementById("secondKartGroup");
+    if (infringementType === "Advantage by Contact" || infringementType === "Contact") {
+      secondKartGroup.style.display = "block";
+    } else {
+      secondKartGroup.style.display = "none";
+      document.getElementById("editSecondKart").value = "";
+    }
+    
+    // Auto-set penalty to Warning for White Line and Yellow Zone
+    if (infringementType === "White Line Infringement" || infringementType === "Yellow Zone Infringement") {
+      document.getElementById("editPenalty").value = "Warning";
+    }
+  }
+  
+  // Handle penalty type change to show/hide lap number field
+  function handlePenaltyChange() {
+    const penaltyType = document.getElementById("editPenalty").value;
+    const lapNumberGroup = document.getElementById("lapNumberGroup");
+    if (penaltyType === "Lap Invalidation") {
+      lapNumberGroup.style.display = "block";
+    } else {
+      lapNumberGroup.style.display = "none";
+      document.getElementById("editLapNumber").value = "";
+    }
+  }
+
   // Event listeners
   document.getElementById("searchInput").addEventListener("input", filterTable);
   document.getElementById("backBtn").addEventListener("click", clearSearch);
-  document.getElementById("closeModal").addEventListener("click", function() {
+  function closeModal() {
     document.getElementById("editModal").classList.remove("show");
-  });
-  document.getElementById("cancelEdit").addEventListener("click", function() {
-    document.getElementById("editModal").classList.remove("show");
-  });
+    // Reset conditional fields
+    document.getElementById("secondKartGroup").style.display = "none";
+    document.getElementById("lapNumberGroup").style.display = "none";
+    document.getElementById("editSecondKart").value = "";
+    document.getElementById("editLapNumber").value = "";
+  }
+  
+  document.getElementById("closeModal").addEventListener("click", closeModal);
+  document.getElementById("cancelEdit").addEventListener("click", closeModal);
+  document.getElementById("editInfringement").addEventListener("change", handleInfringementChange);
+  document.getElementById("editPenalty").addEventListener("change", handlePenaltyChange);
 
   // Edit form submission
   document.getElementById("editForm").addEventListener("submit", async function(e) {
     e.preventDefault();
     if (!currentEditId) return;
 
+    const infringementType = document.getElementById("editInfringement").value;
+    const secondKartNumber = document.getElementById("editSecondKart").value.trim();
+    const penaltyType = document.getElementById("editPenalty").value;
+    const lapNumber = document.getElementById("editLapNumber").value.trim();
+    
+    // Format description for "Advantage by Contact" or "Contact" with second kart number
+    let finalDescription = infringementType || null;
+    if (infringementType && secondKartNumber !== "") {
+      const parsedSecondKart = parseInt(secondKartNumber, 10);
+      if (!isNaN(parsedSecondKart)) {
+        if (infringementType === "Advantage by Contact") {
+          finalDescription = "ABC over " + parsedSecondKart;
+        } else if (infringementType === "Contact") {
+          finalDescription = "Contact over " + parsedSecondKart;
+        }
+      }
+    }
+    
+    // Format penalty_description for "Lap Invalidation" with lap number
+    let finalPenaltyDescription = penaltyType || null;
+    if (penaltyType === "Lap Invalidation" && lapNumber !== "") {
+      finalPenaltyDescription = "Lap Invalidation - Lap " + lapNumber;
+    }
+
+    const observerValue = document.getElementById("editObserver").value.trim();
+    
     const payload = {
       kart_number: parseInt(document.getElementById("editKart").value),
       turn_number: document.getElementById("editTurn").value
         ? document.getElementById("editTurn").value.trim()
         : null,
-      observer: document.getElementById("editObserver").value,
-      description: document.getElementById("editInfringement").value,
-      penalty_description: document.getElementById("editPenalty").value,
-      performed_by: "Race Control Operator"
+      observer: observerValue === "" ? null : observerValue,
+      description: finalDescription,
+      penalty_description: finalPenaltyDescription,
+      performed_by: observerValue || "Race Control Operator"
     };
 
     try {
@@ -241,7 +357,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       });
 
       if (response.ok) {
-        document.getElementById("editModal").classList.remove("show");
+        closeModal();
         await refreshTable();
         if (window.opener) {
           window.opener.postMessage({ type: "updateInfringement", id: currentEditId }, "*");
