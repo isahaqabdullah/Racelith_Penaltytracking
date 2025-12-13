@@ -64,6 +64,76 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
     return diffMinutes > warningExpiryMinutes;
   };
 
+  // Calculate the current warning count for white line or yellow zone infringements
+  // This counts only non-expired warnings and updates dynamically based on expiry
+  const getCurrentWarningCount = (inf: InfringementRecord): number | null => {
+    const description = (inf.description || '').toLowerCase();
+    const isWhiteLine = description.includes('white line infringement');
+    const isYellowZone = description.includes('yellow zone');
+    
+    // Only calculate for white line or yellow zone infringements
+    if (!isWhiteLine && !isYellowZone) return null;
+    
+    // Only show count for warnings
+    if (inf.penalty_description !== 'Warning') return null;
+    
+    // If this warning itself is expired, don't show count
+    if (isWarningExpired(inf)) return null;
+    
+    // Calculate the actual current warning count by counting all valid (non-expired) warnings
+    const now = new Date();
+    const expiryThreshold = new Date(now.getTime() - warningExpiryMinutes * 60 * 1000);
+    
+    // Find the last penalty for this kart and infringement type (if any)
+    const lastPenalty = infringements
+      .filter(i => 
+        i.kart_number === inf.kart_number &&
+        i.description?.toLowerCase().includes(isWhiteLine ? 'white line infringement' : 'yellow zone') &&
+        i.penalty_due === 'Yes'
+      )
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    
+    // Determine the cycle start (either expiry threshold or last penalty timestamp, whichever is later)
+    const cycleStart = lastPenalty 
+      ? new Date(Math.max(expiryThreshold.getTime(), new Date(lastPenalty.timestamp).getTime()))
+      : expiryThreshold;
+    
+    // Count all valid warnings for this kart and infringement type
+    const validWarnings = infringements.filter(i => {
+      if (i.kart_number !== inf.kart_number) return false;
+      const iDesc = (i.description || '').toLowerCase();
+      const matchesType = isWhiteLine 
+        ? iDesc.includes('white line infringement')
+        : iDesc.includes('yellow zone');
+      if (!matchesType) return false;
+      
+      // Must be a warning
+      if (i.penalty_description !== 'Warning') return false;
+      
+      // Must not have triggered a penalty
+      if (i.penalty_due === 'Yes') return false;
+      
+      // Must be within the cycle (after cycle start)
+      const iTimestamp = new Date(i.timestamp);
+      if (iTimestamp < cycleStart) return false;
+      
+      // Must not be expired
+      if (isWarningExpired(i)) return false;
+      
+      // Must be before or equal to the current infringement's timestamp
+      return new Date(i.timestamp).getTime() <= new Date(inf.timestamp).getTime();
+    });
+    
+    // Sort by timestamp to get the order
+    validWarnings.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
+    // Find the position of the current infringement in the valid warnings list
+    const currentIndex = validWarnings.findIndex(w => w.id === inf.id);
+    
+    // Return the count (1-indexed, so index 0 = count 1, index 1 = count 2, etc.)
+    return currentIndex >= 0 ? currentIndex + 1 : null;
+  };
+
   // Check if this is a 2nd warning for white line or yellow zone (for flag display)
   // This calculates the actual current warning count by counting only non-expired warnings
   // Example: If Warning 1 expires, Warning 2 becomes the 1st valid warning (no flag)
@@ -86,12 +156,14 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
     const now = new Date();
     const expiryThreshold = new Date(now.getTime() - warningExpiryMinutes * 60 * 1000);
     
-    // Find the last penalty for this kart and infringement type (if any)
+    // Find the last penalty (pending or applied) for this kart and infringement type (if any)
+    // penalty_due == "Yes" resets the cycle, but we also need to find applied penalties
+    // to know where the cycle started. We use penalty_taken only to identify applied penalties.
     const lastPenalty = infringements
       .filter(i => 
         i.kart_number === inf.kart_number &&
         i.description?.toLowerCase().includes(isWhiteLine ? 'white line infringement' : 'yellow zone') &&
-        i.penalty_due === 'Yes'
+        (i.penalty_due === 'Yes' || (i.penalty_due === 'No' && i.penalty_taken !== null))  // Pending or applied penalty
       )
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
     
@@ -424,17 +496,19 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                           {inf.kart_number}
                         </td>
                         <td className="p-2 align-middle whitespace-nowrap">{turnDisplay}</td>
-                        <td className="p-2 align-middle whitespace-nowrap">{inf.description}</td>
+                        <td className="p-2 align-middle whitespace-nowrap">
+                          {inf.description}
+                        </td>
                         <td className="p-2 align-middle whitespace-nowrap">{inf.penalty_description ?? '—'}</td>
                         <td className="p-2 align-middle whitespace-nowrap">{inf.observer ?? '—'}</td>
                         <td className="p-2 align-middle whitespace-nowrap">
                           <div className="flex items-center gap-2">
-                            <Badge 
-                              variant={statusVariant}
-                              style={customStyle}
-                            >
-                              {statusLabel}
-                            </Badge>
+                          <Badge 
+                            variant={statusVariant}
+                            style={customStyle}
+                          >
+                            {statusLabel}
+                          </Badge>
                             {showWarningFlag && (
                               <svg 
                                 className="h-5 w-5" 

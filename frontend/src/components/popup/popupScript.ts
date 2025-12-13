@@ -65,6 +65,78 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     return div.innerHTML;
   }
 
+  // Calculate the current warning count for white line or yellow zone infringements
+  // This counts only non-expired warnings and updates dynamically based on expiry
+  function getCurrentWarningCount(inf, allInfringements) {
+    const description = (inf.description || "").toLowerCase();
+    const isWhiteLine = description.includes("white line infringement");
+    const isYellowZone = description.includes("yellow zone");
+    
+    // Only calculate for white line or yellow zone infringements
+    if (!isWhiteLine && !isYellowZone) return null;
+    
+    // Only show count for warnings
+    if (inf.penalty_description !== "Warning") return null;
+    
+    // If this warning itself is expired, don't show count
+    if (isExpired(inf)) return null;
+    
+    // Calculate the actual current warning count by counting all valid (non-expired) warnings
+    const now = new Date();
+    const expiryThreshold = new Date(now.getTime() - WARNING_EXPIRY_MINUTES * 60 * 1000);
+    
+    // Find the last penalty (pending or applied) for this kart and infringement type (if any)
+    // penalty_due == "Yes" resets the cycle, but we also need to find applied penalties
+    // to know where the cycle started. We use penalty_taken only to identify applied penalties.
+    const lastPenalty = allInfringements
+      .filter(i => 
+        i.kart_number === inf.kart_number &&
+        i.description && i.description.toLowerCase().includes(isWhiteLine ? "white line infringement" : "yellow zone") &&
+        (i.penalty_due === "Yes" || (i.penalty_due === "No" && i.penalty_taken !== null))  // Pending or applied penalty
+      )
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    
+    // Determine the cycle start (either expiry threshold or last penalty timestamp, whichever is later)
+    const cycleStart = lastPenalty 
+      ? new Date(Math.max(expiryThreshold.getTime(), new Date(lastPenalty.timestamp).getTime()))
+      : expiryThreshold;
+    
+    // Count all valid warnings for this kart and infringement type
+    const validWarnings = allInfringements.filter(i => {
+      if (i.kart_number !== inf.kart_number) return false;
+      const iDesc = (i.description || "").toLowerCase();
+      const matchesType = isWhiteLine 
+        ? iDesc.includes("white line infringement")
+        : iDesc.includes("yellow zone");
+      if (!matchesType) return false;
+      
+      // Must be a warning
+      if (i.penalty_description !== "Warning") return false;
+      
+      // Must not have triggered a penalty
+      if (i.penalty_due === "Yes") return false;
+      
+      // Must be within the cycle (after cycle start)
+      const iTimestamp = new Date(i.timestamp);
+      if (iTimestamp < cycleStart) return false;
+      
+      // Must not be expired
+      if (isExpired(i)) return false;
+      
+      // Must be before or equal to the current infringement's timestamp
+      return new Date(i.timestamp).getTime() <= new Date(inf.timestamp).getTime();
+    });
+    
+    // Sort by timestamp to get the order
+    validWarnings.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
+    // Find the position of the current infringement in the valid warnings list
+    const currentIndex = validWarnings.findIndex(w => w.id === inf.id);
+    
+    // Return the count (1-indexed, so index 0 = count 1, index 1 = count 2, etc.)
+    return currentIndex >= 0 ? currentIndex + 1 : null;
+  }
+
   // Check if this is a 2nd warning for white line or yellow zone
   // This calculates the actual current warning count by counting only non-expired warnings
   function isSecondWarning(inf, allInfringements) {
@@ -85,12 +157,14 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     const now = new Date();
     const expiryThreshold = new Date(now.getTime() - WARNING_EXPIRY_MINUTES * 60 * 1000);
     
-    // Find the last penalty for this kart and infringement type (if any)
+    // Find the last penalty (pending or applied) for this kart and infringement type (if any)
+    // penalty_due == "Yes" resets the cycle, but we also need to find applied penalties
+    // to know where the cycle started. We use penalty_taken only to identify applied penalties.
     const lastPenalty = allInfringements
       .filter(i => 
         i.kart_number === inf.kart_number &&
         i.description && i.description.toLowerCase().includes(isWhiteLine ? "white line infringement" : "yellow zone") &&
-        i.penalty_due === "Yes"
+        (i.penalty_due === "Yes" || (i.penalty_due === "No" && i.penalty_taken !== null))  // Pending or applied penalty
       )
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
     
@@ -148,6 +222,8 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     const status = escapeHtml(getStatus(inf));
     const statusClass = getStatus(inf).toLowerCase();
     const showWarningFlag = isSecondWarning(inf, allInfringements);
+    // Format description (warning count removed)
+    let descriptionDisplay = description;
     
     const editIcon = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>';
     const deleteIcon = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
@@ -169,7 +245,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       '<td>' + time + '</td>' +
       '<td>' + kartNum + '</td>' +
       '<td>' + turn + '</td>' +
-      '<td>' + description + '</td>' +
+      '<td>' + descriptionDisplay + '</td>' +
       '<td>' + penalty + '</td>' +
       '<td>' + observer + '</td>' +
       statusCell +

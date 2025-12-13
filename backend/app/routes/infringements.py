@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import ProgrammingError, OperationalError
+from sqlalchemy import or_
 from datetime import datetime, timezone, timedelta
 import json, logging
 
@@ -75,11 +76,16 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
             else:
                 # Warning path: special accumulation (180 min expiry, 3 warnings = penalty)
                 # Only count warnings that haven't triggered a penalty yet (penalty_due != "Yes")
-                # This allows the warning count to reset after a penalty is issued
+                # This allows the warning count to reset after a penalty is due (pending)
+                # penalty_due == "Yes" resets the cycle, but we also need to find applied penalties
+                # to know where the cycle started. We use penalty_taken only to identify applied penalties.
                 last_penalty = db.query(Infringement).filter(
                     Infringement.kart_number == payload.kart_number,
                     Infringement.description.ilike("%white line infringement%"),
-                    Infringement.penalty_due == "Yes"
+                    or_(
+                        Infringement.penalty_due == "Yes",  # Pending penalty
+                        (Infringement.penalty_due == "No") & (Infringement.penalty_taken.isnot(None))  # Applied penalty
+                    )
                 ).order_by(Infringement.timestamp.desc()).first()
 
                 cycle_start = expiry_threshold
@@ -90,7 +96,7 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
                     Infringement.kart_number == payload.kart_number,
                     Infringement.description.ilike("%white line infringement%"),
                     Infringement.timestamp >= cycle_start,
-                    Infringement.penalty_due != "Yes"  # Exclude infringements that already triggered a penalty
+                    Infringement.penalty_description == "Warning"  # Only count warnings, exclude penalty entries (both pending and applied)
                 ).order_by(Infringement.timestamp.desc()).all()
 
                 warning_count = len(valid_white_infringements) + 1  # +1 for current one
@@ -116,12 +122,17 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
             else:
                 # Warning path: special accumulation (180 min expiry, 3 warnings = penalty)
                 # Only count warnings that haven't triggered a penalty yet (penalty_due != "Yes")
-                # This allows the warning count to reset after a penalty is issued
+                # This allows the warning count to reset after a penalty is due (pending)
                 # Yellow zone is tracked separately from white line
+                # penalty_due == "Yes" resets the cycle, but we also need to find applied penalties
+                # to know where the cycle started. We use penalty_taken only to identify applied penalties.
                 last_penalty = db.query(Infringement).filter(
                     Infringement.kart_number == payload.kart_number,
                     Infringement.description.ilike("%yellow zone%"),
-                    Infringement.penalty_due == "Yes"
+                    or_(
+                        Infringement.penalty_due == "Yes",  # Pending penalty
+                        (Infringement.penalty_due == "No") & (Infringement.penalty_taken.isnot(None))  # Applied penalty
+                    )
                 ).order_by(Infringement.timestamp.desc()).first()
 
                 cycle_start = expiry_threshold
@@ -132,7 +143,7 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
                     Infringement.kart_number == payload.kart_number,
                     Infringement.description.ilike("%yellow zone%"),
                     Infringement.timestamp >= cycle_start,
-                    Infringement.penalty_due != "Yes"  # Exclude infringements that already triggered a penalty
+                    Infringement.penalty_description == "Warning"  # Only count warnings, exclude penalty entries (both pending and applied)
                 ).order_by(Infringement.timestamp.desc()).all()
 
                 warning_count = len(valid_yellow_infringements) + 1  # +1 for current one
@@ -307,11 +318,16 @@ def update_infringement(
             # White line: special warning accumulation logic (180 min expiry, 3 warnings = penalty)
             # Get *non-expired* white line infringements for this kart (excluding current one)
             # Only count warnings that haven't triggered a penalty yet (penalty_due != "Yes")
-            # This allows the warning count to reset after a penalty is issued
+            # This allows the warning count to reset after a penalty is due (pending)
+            # penalty_due == "Yes" resets the cycle, but we also need to find applied penalties
+            # to know where the cycle started. We use penalty_taken only to identify applied penalties.
             last_penalty = db.query(Infringement).filter(
                 Infringement.kart_number == payload.kart_number,
                 Infringement.description.ilike("%white line infringement%"),
-                Infringement.penalty_due == "Yes",
+                or_(
+                    Infringement.penalty_due == "Yes",  # Pending penalty
+                    (Infringement.penalty_due == "No") & (Infringement.penalty_taken.isnot(None))  # Applied penalty
+                ),
                 Infringement.id != inf.id,
             ).order_by(Infringement.timestamp.desc()).first()
 
@@ -324,7 +340,7 @@ def update_infringement(
                 Infringement.description.ilike("%white line infringement%"),
                 Infringement.timestamp >= cycle_start,
                 Infringement.id != inf.id,
-                Infringement.penalty_due != "Yes"  # Exclude infringements that already triggered a penalty
+                Infringement.penalty_description == "Warning"  # Only count warnings, exclude penalty entries (both pending and applied)
             ).order_by(Infringement.timestamp.desc()).all()
 
             warning_count = len(valid_white_infringements) + 1  # +1 for current one
@@ -351,12 +367,17 @@ def update_infringement(
                 # Warning path: special accumulation (180 min expiry, 3 warnings = penalty)
                 # Get *non-expired* yellow zone infringements for this kart (excluding current one)
                 # Only count warnings that haven't triggered a penalty yet (penalty_due != "Yes")
-                # This allows the warning count to reset after a penalty is issued
+                # This allows the warning count to reset after a penalty is due (pending)
                 # Yellow zone is tracked separately from white line
+                # penalty_due == "Yes" resets the cycle, but we also need to find applied penalties
+                # to know where the cycle started. We use penalty_taken only to identify applied penalties.
                 last_penalty = db.query(Infringement).filter(
                     Infringement.kart_number == payload.kart_number,
                     Infringement.description.ilike("%yellow zone%"),
-                    Infringement.penalty_due == "Yes",
+                    or_(
+                        Infringement.penalty_due == "Yes",  # Pending penalty
+                        (Infringement.penalty_due == "No") & (Infringement.penalty_taken.isnot(None))  # Applied penalty
+                    ),
                     Infringement.id != inf.id,
                 ).order_by(Infringement.timestamp.desc()).first()
 
@@ -369,7 +390,7 @@ def update_infringement(
                     Infringement.description.ilike("%yellow zone%"),
                     Infringement.timestamp >= cycle_start,
                     Infringement.id != inf.id,
-                    Infringement.penalty_due != "Yes"  # Exclude infringements that already triggered a penalty
+                    Infringement.penalty_description == "Warning"  # Only count warnings, exclude penalty entries (both pending and applied)
                 ).order_by(Infringement.timestamp.desc()).all()
 
                 warning_count = len(valid_yellow_infringements) + 1  # +1 for current one
