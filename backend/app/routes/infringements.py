@@ -374,12 +374,12 @@ def update_infringement(
 
                 warning_count = len(valid_yellow_infringements) + 1  # +1 for current one
 
-                if warning_count >= 3:
-                    penalty_due = "Yes"
-                    penalty_description = "5 sec Stop & Go"
-                else:
-                    penalty_due = "No"
-                    penalty_description = "Warning"
+            if warning_count >= 3:
+                penalty_due = "Yes"
+                penalty_description = "5 sec Stop & Go"
+            else:
+                penalty_due = "No"
+                penalty_description = "Warning"
         else:
             # All other infringements (yellow zone, generic, etc.): use penalty_description from payload
             warning_count = 1

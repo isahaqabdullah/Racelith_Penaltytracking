@@ -10,7 +10,15 @@ import { Alert, AlertDescription, AlertTitle } from './components/ui/alert';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
-import { AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Switch } from './components/ui/switch';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from './components/ui/dialog';
+import { AlertCircle, Wifi, WifiOff, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   API_BASE,
@@ -50,7 +58,11 @@ export default function App() {
   const [hasActiveSession, setHasActiveSession] = useState<boolean | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [warningExpiryMinutes, setWarningExpiryMinutes] = useState<number>(180);
+  const [showExpirySettings, setShowExpirySettings] = useState<boolean>(false);
+  const [isSavingConfig, setIsSavingConfig] = useState<boolean>(false);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
+  const [passwordInput, setPasswordInput] = useState<string>('');
   const [paginationPage, setPaginationPage] = useState<number>(1);
   const [paginationLimit, setPaginationLimit] = useState<number>(300);
   const [paginationTotal, setPaginationTotal] = useState<number>(0);
@@ -363,6 +375,44 @@ export default function App() {
     setPaginationPage(1); // Reset to first page when changing page size
   };
 
+  const handleSaveExpiryMinutes = async () => {
+    try {
+      setIsSavingConfig(true);
+      await updateConfig({ warning_expiry_minutes: warningExpiryMinutes });
+      toast.success('Warning expiry minutes updated successfully');
+    } catch (error: any) {
+      console.error('Failed to update config', error);
+      toast.error('Error Updating Config', {
+        description: error?.message || 'Failed to update warning expiry minutes',
+      });
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  const handleToggleExpirySettings = (checked: boolean) => {
+    if (checked) {
+      // User wants to turn it on - require password
+      setPasswordDialogOpen(true);
+    } else {
+      // User wants to turn it off - no password needed
+      setShowExpirySettings(false);
+    }
+  };
+
+  const handlePasswordSubmit = () => {
+    if (passwordInput === 'kart123') {
+      setShowExpirySettings(true);
+      setPasswordDialogOpen(false);
+      setPasswordInput('');
+    } else {
+      toast.error('Incorrect Password', {
+        description: 'The password you entered is incorrect.',
+      });
+      setPasswordInput('');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b relative overflow-hidden bg-background">
@@ -387,6 +437,44 @@ export default function App() {
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Active Session</p>
                   <p className="font-semibold">{activeSessionName}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-4 w-4 text-muted-foreground" />
+                    <Label htmlFor="expiry-toggle" className="text-xs text-muted-foreground cursor-pointer">
+                      Expiry
+                    </Label>
+                    <Switch
+                      id="expiry-toggle"
+                      checked={showExpirySettings}
+                      onCheckedChange={handleToggleExpirySettings}
+                    />
+                  </div>
+                  {showExpirySettings && (
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="expiry-minutes" className="text-xs text-muted-foreground whitespace-nowrap">
+                        Minutes:
+                      </Label>
+                      <Input
+                        id="expiry-minutes"
+                        type="number"
+                        min="1"
+                        max="1440"
+                        value={warningExpiryMinutes}
+                        onChange={(e) => setWarningExpiryMinutes(Number(e.target.value))}
+                        className="w-20 h-8 text-xs"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleSaveExpiryMinutes}
+                        disabled={isSavingConfig}
+                        className="h-8 text-xs"
+                      >
+                        {isSavingConfig ? 'Saving...' : 'Save'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2 items-end">
                   <Button variant="outline" onClick={handleBackToSessions}>
@@ -470,6 +558,47 @@ export default function App() {
           onSave={handleSaveEdit}
           isSaving={isSavingEdit}
         />
+
+        {/* Password Dialog for Expiry Settings */}
+        <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Enter Password</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="password-input">Password</Label>
+                <Input
+                  id="password-input"
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  placeholder="Enter password"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && passwordInput) {
+                      handlePasswordSubmit();
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPasswordDialogOpen(false);
+                  setPasswordInput('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handlePasswordSubmit} disabled={!passwordInput}>
+                Submit
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

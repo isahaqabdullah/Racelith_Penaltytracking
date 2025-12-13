@@ -66,6 +66,8 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
 
   // Check if this is a 2nd warning for white line or yellow zone (for flag display)
   // This calculates the actual current warning count by counting only non-expired warnings
+  // Example: If Warning 1 expires, Warning 2 becomes the 1st valid warning (no flag)
+  //          If Warning 1 and Warning 2 are both valid, Warning 2 is the 2nd warning (shows flag)
   const isSecondWarning = (inf: InfringementRecord) => {
     const isWarning = inf.penalty_description === 'Warning';
     if (!isWarning) return false;
