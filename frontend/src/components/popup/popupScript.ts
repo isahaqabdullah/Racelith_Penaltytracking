@@ -32,6 +32,18 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     return diffMinutes > WARNING_EXPIRY_MINUTES;
   }
 
+  // Check if this is a penalty entry
+  function isPenaltyEntry(inf) {
+    const description = (inf.penalty_description || "").toLowerCase();
+    const hasMeaningfulPenalty =
+      inf.penalty_description &&
+      description !== "warning" &&
+      description !== "no further action";
+    const pendingPenalty = inf.penalty_due === "Yes" && hasMeaningfulPenalty;
+    const appliedPenalty = inf.penalty_due === "No" && inf.penalty_taken && !(inf.penalty_description === "Warning");
+    return pendingPenalty || appliedPenalty;
+  }
+
   // Get status label for an infringement
   function getStatus(inf) {
     const isWarning = inf.penalty_description === "Warning";
@@ -53,8 +65,79 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     return div.innerHTML;
   }
 
+  // Check if this is a 2nd warning for white line or yellow zone
+  // This calculates the actual current warning count by counting only non-expired warnings
+  function isSecondWarning(inf, allInfringements) {
+    const isWarning = inf.penalty_description === "Warning";
+    if (!isWarning) return false;
+    
+    const description = (inf.description || "").toLowerCase();
+    const isWhiteLine = description.includes("white line infringement");
+    const isYellowZone = description.includes("yellow zone");
+    
+    if (!isWhiteLine && !isYellowZone) return false;
+    
+    // Check if this warning itself is expired
+    if (isExpired(inf)) return false;
+    
+    // Calculate the actual current warning count by counting all valid (non-expired) warnings
+    // for the same kart and same infringement type, up to and including this one
+    const now = new Date();
+    const expiryThreshold = new Date(now.getTime() - WARNING_EXPIRY_MINUTES * 60 * 1000);
+    
+    // Find the last penalty for this kart and infringement type (if any)
+    const lastPenalty = allInfringements
+      .filter(i => 
+        i.kart_number === inf.kart_number &&
+        i.description && i.description.toLowerCase().includes(isWhiteLine ? "white line infringement" : "yellow zone") &&
+        i.penalty_due === "Yes"
+      )
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    
+    // Determine the cycle start (either expiry threshold or last penalty timestamp, whichever is later)
+    const cycleStart = lastPenalty 
+      ? new Date(Math.max(expiryThreshold.getTime(), new Date(lastPenalty.timestamp).getTime()))
+      : expiryThreshold;
+    
+    // Count all valid warnings for this kart and infringement type
+    // Valid means: not expired, hasn't triggered a penalty, and is within the cycle
+    const validWarnings = allInfringements.filter(i => {
+      if (i.kart_number !== inf.kart_number) return false;
+      const iDesc = (i.description || "").toLowerCase();
+      const matchesType = isWhiteLine 
+        ? iDesc.includes("white line infringement")
+        : iDesc.includes("yellow zone");
+      if (!matchesType) return false;
+      
+      // Must be a warning
+      if (i.penalty_description !== "Warning") return false;
+      
+      // Must not have triggered a penalty
+      if (i.penalty_due === "Yes") return false;
+      
+      // Must be within the cycle (after cycle start)
+      const iTimestamp = new Date(i.timestamp);
+      if (iTimestamp < cycleStart) return false;
+      
+      // Must not be expired
+      if (isExpired(i)) return false;
+      
+      // Must be before or equal to the current infringement's timestamp
+      return new Date(i.timestamp).getTime() <= new Date(inf.timestamp).getTime();
+    });
+    
+    // Sort by timestamp to get the order
+    validWarnings.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
+    // Find the position of the current infringement in the valid warnings list
+    const currentIndex = validWarnings.findIndex(w => w.id === inf.id);
+    
+    // It's the 2nd warning if it's at index 1 (0-indexed, so 2nd item)
+    return currentIndex === 1;
+  }
+
   // Generate table row HTML for an infringement
-  function generateRowHTML(inf) {
+  function generateRowHTML(inf, allInfringements) {
     const id = escapeHtml(inf.id.toString());
     const kartNum = escapeHtml(inf.kart_number.toString());
     const time = escapeHtml(formatTime(inf.timestamp));
@@ -64,9 +147,23 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     const observer = inf.observer ? escapeHtml(inf.observer) : "—";
     const status = escapeHtml(getStatus(inf));
     const statusClass = getStatus(inf).toLowerCase();
-
+    const showWarningFlag = isSecondWarning(inf, allInfringements);
+    
     const editIcon = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>';
     const deleteIcon = '<svg class="btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+    const flagIcon = '<svg class="warning-flag-icon" viewBox="0 0 24 24" style="width: 20px; height: 20px; background-color: #e5e7eb;" title="Second warning - next warning will result in penalty">' +
+      '<rect x="0" y="0" width="24" height="24" fill="#e5e7eb"/>' +
+      '<rect x="2" y="2" width="2" height="18" fill="black"/>' +
+      '<polygon points="4,2 4,14 16,14" fill="white"/>' +
+      '<polygon points="4,2 18,2 16,14" fill="black"/>' +
+      '</svg>';
+
+    const statusCell = '<td>' +
+      '<div style="display: flex; align-items: center; gap: 8px;">' +
+      '<span class="badge badge-' + statusClass + '">' + status + '</span>' +
+      (showWarningFlag ? flagIcon : '') +
+      '</div>' +
+      '</td>';
 
     return '<tr data-kart="' + kartNum + '" data-id="' + id + '">' +
       '<td>' + time + '</td>' +
@@ -75,7 +172,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       '<td>' + description + '</td>' +
       '<td>' + penalty + '</td>' +
       '<td>' + observer + '</td>' +
-      '<td><span class="badge badge-' + statusClass + '">' + status + '</span></td>' +
+      statusCell +
       '<td>' +
       '<div class="actions">' +
       '<button class="btn btn-edit" onclick="window.handleEdit(' + id + ')" title="Edit">' + editIcon + '</button>' +
@@ -108,7 +205,9 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       console.log("Fetched data:", data.length, "infringements");
       const searchInput = document.getElementById("searchInput");
       const backBtn = document.getElementById("backBtn");
+      const filterSelect = document.getElementById("filterSelect");
       const searchValue = searchInput ? searchInput.value.trim() : "";
+      const filterValue = filterSelect ? filterSelect.value : "all";
 
       // Show/hide back button based on search
       if (backBtn) {
@@ -120,12 +219,19 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       }
 
       // Filter by kart number (exact match)
-      const filtered = searchValue
+      let filtered = searchValue
         ? data.filter(inf => {
             const kartNum = inf.kart_number.toString();
             return kartNum === searchValue || Number(kartNum) === Number(searchValue);
           })
         : data;
+
+      // Apply filter type
+      if (filterValue === "penalties") {
+        filtered = filtered.filter(isPenaltyEntry);
+      } else if (filterValue === "warning-flag") {
+        filtered = filtered.filter(inf => isSecondWarning(inf, data));
+      }
 
       if (filtered.length === 0) {
         const message = searchValue
@@ -133,7 +239,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
           : "No infringements logged yet";
         tbody.innerHTML = '<tr><td colspan="8" class="empty">' + message + '</td></tr>';
       } else {
-        tbody.innerHTML = filtered.map(generateRowHTML).join("");
+        tbody.innerHTML = filtered.map(inf => generateRowHTML(inf, data)).join("");
       }
     } catch (error) {
       console.error("Refresh error:", error);
@@ -143,7 +249,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     }
   }
 
-  // Filter table on search input
+  // Filter table on search input or filter change
   function filterTable() {
     refreshTable();
   }
@@ -292,6 +398,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
 
   // Event listeners
   document.getElementById("searchInput").addEventListener("input", filterTable);
+  document.getElementById("filterSelect").addEventListener("change", filterTable);
   document.getElementById("backBtn").addEventListener("click", clearSearch);
   function closeModal() {
     document.getElementById("editModal").classList.remove("show");

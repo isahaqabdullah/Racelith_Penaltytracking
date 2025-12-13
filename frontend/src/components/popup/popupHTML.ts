@@ -7,6 +7,11 @@ export const popupHTML = `
     <h1>Recent Infringements</h1>
     <div class="search-container">
       <button class="back-btn" id="backBtn">Back</button>
+      <select class="filter-select" id="filterSelect">
+        <option value="all">All Entries</option>
+        <option value="warning-flag">Warning Flag</option>
+        <option value="penalties">Penalties</option>
+      </select>
       <input type="text" class="search-input" id="searchInput" placeholder="Search by kart #" />
     </div>
   </div>

@@ -57,6 +57,19 @@ h1 {
 .back-btn.show { 
   display: block; 
 }
+.filter-select { 
+  padding: 8px 12px; 
+  border: 1px solid #d1d5db; 
+  border-radius: 6px; 
+  font-size: 14px; 
+  background: white; 
+  cursor: pointer; 
+}
+.filter-select:focus { 
+  outline: none; 
+  border-color: #3b82f6; 
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); 
+}
 table { 
   width: 100%; 
   border-collapse: collapse; 

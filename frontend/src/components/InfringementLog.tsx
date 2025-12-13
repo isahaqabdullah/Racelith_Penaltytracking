@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Pencil, Trash2, Maximize2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, Maximize2, ChevronLeft, ChevronRight, Flag } from 'lucide-react';
 import type { InfringementRecord } from '../api';
 import { API_BASE } from '../api';
 import { generatePopupHTML } from './popup/popupTemplate';
@@ -28,9 +28,11 @@ interface InfringementLogProps {
   pagination?: PaginationProps;
 }
 
+type FilterType = 'all' | 'warning-flag' | 'penalties';
+
 export function InfringementLog({ infringements, onEdit, onDelete, warningExpiryMinutes = 180, onPopupOpened, pagination }: InfringementLogProps) {
   const [searchKartNumber, setSearchKartNumber] = useState('');
-  const [showPenaltiesOnly, setShowPenaltiesOnly] = useState(false);
+  const [filterType, setFilterType] = useState<FilterType>('all');
   const popupWindowRef = useRef<Window | null>(null);
 
   const formatTime = (timestamp: string) => {
@@ -53,7 +55,87 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
     return pendingPenalty || appliedPenalty;
   };
 
-  // Filter infringements by kart number (exact match) and optional penalties-only filter
+  // Check if a warning is expired
+  const isWarningExpired = (inf: InfringementRecord) => {
+    if (inf.penalty_description !== 'Warning') return false;
+    const timestamp = new Date(inf.timestamp);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - timestamp.getTime()) / (1000 * 60);
+    return diffMinutes > warningExpiryMinutes;
+  };
+
+  // Check if this is a 2nd warning for white line or yellow zone (for flag display)
+  // This calculates the actual current warning count by counting only non-expired warnings
+  const isSecondWarning = (inf: InfringementRecord) => {
+    const isWarning = inf.penalty_description === 'Warning';
+    if (!isWarning) return false;
+    
+    const description = (inf.description || '').toLowerCase();
+    const isWhiteLine = description.includes('white line infringement');
+    const isYellowZone = description.includes('yellow zone');
+    
+    if (!isWhiteLine && !isYellowZone) return false;
+    
+    // Check if this warning itself is expired
+    if (isWarningExpired(inf)) return false;
+    
+    // Calculate the actual current warning count by counting all valid (non-expired) warnings
+    // for the same kart and same infringement type, up to and including this one
+    const now = new Date();
+    const expiryThreshold = new Date(now.getTime() - warningExpiryMinutes * 60 * 1000);
+    
+    // Find the last penalty for this kart and infringement type (if any)
+    const lastPenalty = infringements
+      .filter(i => 
+        i.kart_number === inf.kart_number &&
+        i.description?.toLowerCase().includes(isWhiteLine ? 'white line infringement' : 'yellow zone') &&
+        i.penalty_due === 'Yes'
+      )
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    
+    // Determine the cycle start (either expiry threshold or last penalty timestamp, whichever is later)
+    const cycleStart = lastPenalty 
+      ? new Date(Math.max(expiryThreshold.getTime(), new Date(lastPenalty.timestamp).getTime()))
+      : expiryThreshold;
+    
+    // Count all valid warnings for this kart and infringement type
+    // Valid means: not expired, hasn't triggered a penalty, and is within the cycle
+    const validWarnings = infringements.filter(i => {
+      if (i.kart_number !== inf.kart_number) return false;
+      const iDesc = (i.description || '').toLowerCase();
+      const matchesType = isWhiteLine 
+        ? iDesc.includes('white line infringement')
+        : iDesc.includes('yellow zone');
+      if (!matchesType) return false;
+      
+      // Must be a warning
+      if (i.penalty_description !== 'Warning') return false;
+      
+      // Must not have triggered a penalty
+      if (i.penalty_due === 'Yes') return false;
+      
+      // Must be within the cycle (after cycle start)
+      const iTimestamp = new Date(i.timestamp);
+      if (iTimestamp < cycleStart) return false;
+      
+      // Must not be expired
+      if (isWarningExpired(i)) return false;
+      
+      // Must be before or equal to the current infringement's timestamp
+      return new Date(i.timestamp).getTime() <= new Date(inf.timestamp).getTime();
+    });
+    
+    // Sort by timestamp to get the order
+    validWarnings.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
+    // Find the position of the current infringement in the valid warnings list
+    const currentIndex = validWarnings.findIndex(w => w.id === inf.id);
+    
+    // It's the 2nd warning if it's at index 1 (0-indexed, so 2nd item)
+    return currentIndex === 1;
+  };
+
+  // Filter infringements by kart number (exact match) and filter type
   const filteredInfringements = (searchKartNumber
     ? infringements.filter((inf) => {
         const searchValue = searchKartNumber.trim();
@@ -61,7 +143,14 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
         return kartNum === searchValue || Number(kartNum) === Number(searchValue);
       })
     : infringements
-  ).filter((inf) => (showPenaltiesOnly ? isPenaltyEntry(inf) : true));
+  ).filter((inf) => {
+    if (filterType === 'penalties') {
+      return isPenaltyEntry(inf);
+    } else if (filterType === 'warning-flag') {
+      return isSecondWarning(inf);
+    }
+    return true; // 'all'
+  });
 
   const handleExpand = () => {
     const newWindow = window.open('', '_blank', 'width=1400,height=900');
@@ -163,14 +252,19 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                 Back
               </Button>
             )}
-            <Button
-              type="button"
-              variant={showPenaltiesOnly ? 'secondary' : 'outline'}
-              onClick={() => setShowPenaltiesOnly((prev) => !prev)}
-              className="h-7 px-3 text-xs"
+            <Select
+              value={filterType}
+              onValueChange={(value: FilterType) => setFilterType(value)}
             >
-              {showPenaltiesOnly ? 'Showing Penalties' : 'All Entries'}
-            </Button>
+              <SelectTrigger className="h-7 w-40 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Entries</SelectItem>
+                <SelectItem value="warning-flag">Warning Flag</SelectItem>
+                <SelectItem value="penalties">Penalties</SelectItem>
+              </SelectContent>
+            </Select>
             {pagination && (
               <>
                 <div className="flex items-center gap-2">
@@ -277,6 +371,11 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                       return diffMinutes > warningExpiryMinutes;
                     })();
                     
+                    // Check if this is a 2nd warning (out of 3) for white line or yellow zone
+                    // Note: warning_count is stored at creation time. Even if earlier warnings expire,
+                    // this infringement was still created as the 2nd warning, so we show the flag.
+                    const showWarningFlag = isSecondWarning(inf);
+                    
                     const penaltyApplied =
                       inf.penalty_due === 'No' &&
                       Boolean(inf.penalty_taken) &&
@@ -327,12 +426,38 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                         <td className="p-2 align-middle whitespace-nowrap">{inf.penalty_description ?? '—'}</td>
                         <td className="p-2 align-middle whitespace-nowrap">{inf.observer ?? '—'}</td>
                         <td className="p-2 align-middle whitespace-nowrap">
-                          <Badge 
-                            variant={statusVariant}
-                            style={customStyle}
-                          >
-                            {statusLabel}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              variant={statusVariant}
+                              style={customStyle}
+                            >
+                              {statusLabel}
+                            </Badge>
+                            {showWarningFlag && (
+                              <svg 
+                                className="h-5 w-5" 
+                                viewBox="0 0 24 24" 
+                                fill="none"
+                                style={{ backgroundColor: '#e5e7eb' }}
+                                title="Second warning - next warning will result in penalty"
+                              >
+                                {/* Grey background */}
+                                <rect x="0" y="0" width="24" height="24" fill="#e5e7eb"/>
+                                {/* Flag pole */}
+                                <rect x="2" y="2" width="2" height="18" fill="black"/>
+                                {/* Flag - white half (bottom-right triangle) */}
+                                <polygon 
+                                  points="4,2 4,14 16,14" 
+                                  fill="white"
+                                />
+                                {/* Flag - black half (top-left triangle) */}
+                                <polygon 
+                                  points="4,2 18,2 16,14" 
+                                  fill="black"
+                                />
+                              </svg>
+                            )}
+                          </div>
                         </td>
                         <td className="p-2 align-middle whitespace-nowrap sticky right-0 z-20 bg-card border-l pl-4">
                           <div className="flex justify-end gap-2">
