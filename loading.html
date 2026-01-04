@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Racelith - Starting...</title>
+    <link rel="icon" href="electron/resources/icon.png" />
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: #000000;
+        color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+      
+      .logo-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 40px;
+      }
+      
+      .logo-icon {
+        width: 192px;
+        height: 192px;
+        flex-shrink: 0;
+      }
+      
+      .logo-text {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      
+      .logo-title {
+        color: #ffffff;
+        font-size: 4rem;
+        font-weight: 200;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        line-height: 1;
+      }
+      
+      .logo-subtitle {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 1.2rem;
+        font-weight: 300;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+      
+      .loading-indicator {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-top: 20px;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      .status {
+        margin-top: 16px;
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 1rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .license-card {
+        margin-top: 28px;
+        width: min(480px, 90vw);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        padding: 18px 16px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      }
+
+      .license-card.hidden {
+        display: none;
+      }
+
+      .license-title {
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+
+      .license-desc {
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 0.95rem;
+        line-height: 1.4;
+        margin-bottom: 12px;
+      }
+
+      .fingerprint-row {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px dashed rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: #cbd5e1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+
+      .fingerprint-row code {
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.9rem;
+        word-break: break-all;
+        color: #e2e8f0;
+      }
+
+      .license-form {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .license-input {
+        flex: 1;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(255, 255, 255, 0.05);
+        color: #ffffff;
+        font-size: 0.95rem;
+      }
+
+      .license-input:focus {
+        outline: 1px solid rgba(255, 255, 255, 0.4);
+      }
+
+      .license-button {
+        padding: 10px 14px;
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: #0b1c12;
+        border: none;
+        border-radius: 8px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        cursor: pointer;
+        transition: transform 120ms ease, box-shadow 120ms ease;
+      }
+
+      .license-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(16, 185, 129, 0.35);
+      }
+
+      .license-message {
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: #cbd5e1;
+      }
+
+      .license-message.error {
+        color: #f87171;
+      }
+
+      .log {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        max-height: 150px;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.8);
+        color: #e2e2e2;
+        border-radius: 8px;
+        padding: 12px;
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: none;
+      }
+      
+      .log.visible {
+        display: block;
+      }
+      
+      .log::-webkit-scrollbar {
+        width: 6px;
+      }
+      
+      .log::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="logo-container">
+      <svg class="logo-icon" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M 100 20 L 160 50 L 160 130 Q 160 160, 100 180 Q 40 160, 40 130 L 40 50 Z"
+          fill="none"
+          stroke="#ffffff"
+          stroke-width="4"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+
+        <g>
+          <rect x="55" y="50" width="15" height="15" fill="#ffffff" />
+          <rect x="85" y="50" width="15" height="15" fill="#ffffff" />
+          <rect x="115" y="50" width="15" height="15" fill="#ffffff" />
+          
+          <rect x="70" y="65" width="15" height="15" fill="#ffffff" />
+          <rect x="100" y="65" width="15" height="15" fill="#ffffff" />
+          <rect x="130" y="65" width="15" height="15" fill="#ffffff" />
+        </g>
+          
+        <path
+          d="M 90 90 L 90 150 L 100 150 L 100 125 L 120 125 L 138 150 L 150 150 L 128 122 Q 142 120, 142 105 Q 142 90, 120 90 Z M 100 100 L 120 100 Q 125 100, 125 105 Q 125 110, 120 115 L 100 115 Z"
+          fill="#ffffff"
+        />
+      </svg>
+      
+      <div class="logo-text">
+        <div class="logo-title">RACELITH</div>
+        <div class="logo-subtitle">Penalty Tracking System</div>
+      </div>
+      
+      <div class="loading-indicator"></div>
+      <div class="status" id="status-text">Starting services… Please wait.</div>
+    </div>
+
+    <div class="license-card hidden" id="license-card">
+      <div class="license-title">License required</div>
+      <p class="license-desc">
+        Enter the license code for this machine. License codes are tied to the machine ID below and cannot be reused on other devices.
+      </p>
+      <div class="fingerprint-row">
+        <span style="text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.8rem;">Machine ID</span>
+        <code id="fingerprint"></code>
+      </div>
+      <form class="license-form" id="license-form">
+        <input class="license-input" id="license-input" type="text" placeholder="Enter license code" autocomplete="off" />
+        <button class="license-button" type="submit">Activate</button>
+      </form>
+      <div class="license-message" id="license-message"></div>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <script>
+      const logContainer = document.getElementById('log');
+      const statusText = document.getElementById('status-text');
+      const licenseCard = document.getElementById('license-card');
+      const fingerprintEl = document.getElementById('fingerprint');
+      const licenseForm = document.getElementById('license-form');
+      const licenseInput = document.getElementById('license-input');
+      const licenseMessage = document.getElementById('license-message');
+
+      const appendLog = (message) => {
+        const line = document.createElement('div');
+        line.textContent = message;
+        logContainer.appendChild(line);
+        logContainer.scrollTop = logContainer.scrollHeight;
+        if (!logContainer.classList.contains('visible')) {
+          logContainer.classList.add('visible');
+        }
+      };
+
+      if (window.electronAPI && window.electronAPI.onLog) {
+        window.electronAPI.onLog(appendLog);
+      }
+
+      if (window.electronAPI && window.electronAPI.onLicenseNeeded) {
+        window.electronAPI.onLicenseNeeded(({ fingerprint }) => {
+          licenseCard.classList.remove('hidden');
+          statusText.textContent = 'License required to start services.';
+          fingerprintEl.textContent = fingerprint;
+        });
+      }
+
+      if (licenseForm && window.electronAPI && window.electronAPI.submitLicense) {
+        licenseForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const code = (licenseInput.value || '').trim();
+          if (!code) {
+            licenseMessage.textContent = 'Please enter a license code.';
+            licenseMessage.classList.add('error');
+            return;
+          }
+          licenseMessage.textContent = 'Validating license...';
+          licenseMessage.classList.remove('error');
+          const result = await window.electronAPI.submitLicense(code);
+          if (result && result.success) {
+            licenseMessage.textContent = 'License accepted. Starting services...';
+            licenseMessage.classList.remove('error');
+            licenseCard.classList.add('hidden');
+            statusText.textContent = 'Starting services… Please wait.';
+          } else {
+            licenseMessage.textContent = (result && result.message) || 'Invalid license code.';
+            licenseMessage.classList.add('error');
+          }
+        });
+      }
+    </script>
+  </body>
+</html>

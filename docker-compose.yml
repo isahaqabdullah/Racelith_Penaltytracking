@@ -1,0 +1,77 @@
+services:
+  db:
+    image: postgres:15
+    container_name: racelith_db
+    restart: always
+    env_file:
+      - ./backend/.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-racelith_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_THIS_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-racelith_db}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-racelith_user} -d ${POSTGRES_DB:-racelith_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - racelith_network
+
+  backend:
+    build: ./backend
+    container_name: racelith_backend
+    restart: always
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://racelith_user:CHANGE_THIS_PASSWORD@db:5432/racelith_db}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend/session_exports:/app/session_exports
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - racelith_network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-http://localhost:8000}
+    container_name: racelith_frontend
+    restart: always
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - racelith_network
+
+networks:
+  racelith_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

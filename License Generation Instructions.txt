@@ -1,0 +1,18 @@
+You can generate a license code from the machine’s fingerprint using the LICENSE_SECRET the app is built with.
+
+Inputs you need:
+
+LICENSE_SECRET (current build uses RACELITH_LICENSE_SECRET unless you changed it)
+fingerprint (shown in the app’s license prompt)
+Options:
+
+Node one-liner (Windows, using installed Node):
+& "C:\Program Files\nodejs\node.exe" -e "const c=require('crypto');const s='RACELITH_LICENSE_SECRET';const fp=process.argv[1];console.log('LIC-'+c.createHmac('sha256',s).update(fp).digest('hex').slice(0,16).toUpperCase());" "<fingerprint>"
+Node one-liner (any OS, node in PATH):
+node -e "const c=require('crypto');const s='RACELITH_LICENSE_SECRET';const fp=process.argv[1];console.log('LIC-'+c.createHmac('sha256',s).update(fp).digest('hex').slice(0,16).toUpperCase());" "<fingerprint>"
+If you changed the secret, replace 'RACELITH_LICENSE_SECRET' with your new value in the commands above.
+Process:
+
+Launch the app, copy the fingerprint shown on the license screen.
+Run one of the commands above with that fingerprint.
+Enter the resulting LIC-... code back into the app.

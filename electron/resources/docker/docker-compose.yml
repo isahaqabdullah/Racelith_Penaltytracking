@@ -1,0 +1,62 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    container_name: racelith_db_desktop
+    restart: always
+    environment:
+      POSTGRES_USER: racelith_user
+      POSTGRES_PASSWORD: CHANGE_THIS_PASSWORD
+      POSTGRES_DB: racelith_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U racelith_user -d racelith_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    image: racelith-backend:latest
+    container_name: racelith_backend_desktop
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://racelith_user:CHANGE_THIS_PASSWORD@db:5432/racelith_db
+      CORS_ORIGINS: "*"
+      ENVIRONMENT: production
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 20s
+      timeout: 8s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    image: racelith-frontend:latest
+    container_name: racelith_frontend_desktop
+    restart: always
+    environment:
+      VITE_API_BASE: http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3002:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  postgres_data:
+    driver: local

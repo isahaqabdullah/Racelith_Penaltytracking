@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+psycopg2-binary
+pydantic
+sqlalchemy
+alembic
+python-dotenv
+openpyxl
+python-dateutil
+python-multipart
