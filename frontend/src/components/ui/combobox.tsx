@@ -116,8 +116,7 @@ export function Combobox({
     setInputValue(selectedValue);
     onValueChange(selectedValue);
     setOpen(false);
-    // Keep focus on input after selection
-    setTimeout(() => inputRef.current?.focus(), 0);
+    inputRef.current?.blur();
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -130,6 +129,17 @@ export function Combobox({
 
   const handleInputClick = () => {
     // Always open dropdown when clicking, regardless of current value
+    setOpen(true);
+  };
+
+  const handleInputMouseDown = () => {
+    // Open on mouse down so first click both focuses and opens the dropdown.
+    if (!open) {
+      setOpen(true);
+    }
+  };
+
+  const handleInputFocus = () => {
     setOpen(true);
   };
 
@@ -156,6 +166,8 @@ export function Combobox({
             onChange={handleInputChange}
             onKeyDown={handleInputKeyDown}
             onClick={handleInputClick}
+            onMouseDown={handleInputMouseDown}
+            onFocus={handleInputFocus}
             placeholder={placeholder}
             required={required}
           />

@@ -1,6 +1,7 @@
 import os
 import logging
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 # Directory to store exported session JSONs (if needed)
 # Use absolute path to avoid issues in Docker
@@ -135,6 +136,32 @@ def utc_now() -> datetime:
     """
     return datetime.now(timezone.utc)
 
+def utc_to_local(utc_dt: datetime, local_tz: str = "Asia/Dubai") -> datetime:
+    """
+    Convert UTC datetime to local timezone.
+    Defaults to Asia/Dubai (Gulf Standard Time, UTC+4).
+    
+    Args:
+        utc_dt: UTC datetime (should be timezone-aware, will be treated as UTC if naive)
+        local_tz: Timezone string (default: "Asia/Dubai")
+    
+    Returns:
+        datetime in local timezone
+    """
+    if utc_dt is None:
+        return None
+    
+    # If naive, assume UTC
+    if utc_dt.tzinfo is None:
+        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+    # If not UTC, convert to UTC first
+    elif utc_dt.tzinfo != timezone.utc:
+        utc_dt = utc_dt.astimezone(timezone.utc)
+    
+    # Convert to local timezone
+    local_tz_obj = ZoneInfo(local_tz)
+    return utc_dt.astimezone(local_tz_obj)
+
 def export_session_data(session_name: str, data: dict) -> str:
     """
     Export session data to a JSON file in SESSION_EXPORT_DIR.
@@ -175,14 +202,20 @@ def export_session_csv(session_name: str, infringements: list, session_info: dic
             writer.writerow(["Session Information"])
             writer.writerow(["Name", session_info.get("name", "")])
             writer.writerow(["Status", session_info.get("status", "")])
-            writer.writerow(["Started At", session_info.get("started_at", "")])
+            # Show local time, but include UTC for import compatibility
+            started_at_local = session_info.get("started_at_local", session_info.get("started_at", ""))
+            started_at_utc = session_info.get("started_at", "")
+            writer.writerow(["Started At (Local)", started_at_local])
+            writer.writerow(["Started At (UTC)", started_at_utc])
             writer.writerow([])  # Empty row
         
         # Write infringements header
         writer.writerow(["Infringements"])
         writer.writerow([
             "ID", "Kart Number", "Turn Number", "Description", "Observer",
-            "Warning Count", "Penalty Due", "Penalty Description", "Penalty Taken", "Timestamp"
+            "Warning Count", "Penalty Due", "Penalty Description", 
+            "Penalty Taken (Local)", "Penalty Taken (UTC)", 
+            "Timestamp (Local)", "Timestamp (UTC)"
         ])
         
         # Write infringement data
@@ -196,8 +229,10 @@ def export_session_csv(session_name: str, infringements: list, session_info: dic
                 inf.get("warning_count", ""),
                 inf.get("penalty_due", ""),
                 inf.get("penalty_description", ""),
-                inf.get("penalty_taken", ""),
-                inf.get("timestamp", "")
+                inf.get("penalty_taken_local", ""),  # Local time (for display)
+                inf.get("penalty_taken", ""),  # UTC (for import)
+                inf.get("timestamp_local", ""),  # Local time (for display)
+                inf.get("timestamp", "")  # UTC (for import)
             ])
         
         # Write history if available
@@ -206,7 +241,8 @@ def export_session_csv(session_name: str, infringements: list, session_info: dic
             writer.writerow([])  # Empty row
             writer.writerow(["Infringement History"])
             writer.writerow([
-                "Infringement ID", "Action", "Performed By", "Observer", "Details", "Timestamp"
+                "Infringement ID", "Action", "Performed By", "Observer", "Details", 
+                "Timestamp (Local)", "Timestamp (UTC)"
             ])
             
             for inf in infringements:
@@ -217,7 +253,8 @@ def export_session_csv(session_name: str, infringements: list, session_info: dic
                         hist.get("performed_by", ""),
                         hist.get("observer", ""),
                         hist.get("details", ""),
-                        hist.get("timestamp", "")
+                        hist.get("timestamp_local", ""),  # Local time (for display)
+                        hist.get("timestamp", "")  # UTC (for import)
                     ])
     
     logger.info(f"Session data exported to CSV: {path}")
@@ -253,18 +290,34 @@ def export_session_excel(session_name: str, infringements: list, session_info: d
         ws["B2"] = session_info.get("name", "")
         ws["A3"] = "Status:"
         ws["B3"] = session_info.get("status", "")
+        # Show local time in main display
+        started_at_local = session_info.get("started_at_local", session_info.get("started_at", ""))
+        started_at_utc = session_info.get("started_at", "")
         ws["A4"] = "Started At:"
-        ws["B4"] = session_info.get("started_at", "")
+        ws["B4"] = started_at_local
+        # Store UTC in a hidden cell for import compatibility
+        ws["C4"] = started_at_utc  # UTC (hidden/reference)
+        ws.column_dimensions["C"].hidden = True  # Hide UTC column
         ws.append([])  # Empty row
     
-    # Helper function to format timestamp as hh:mm:ss
-    def format_time(timestamp_str):
+    # Helper function to format timestamp as hh:mm:ss (local time)
+    def format_time_local(timestamp_str):
         if not timestamp_str:
             return ""
         try:
-            # Parse ISO format timestamp
+            # Parse ISO format timestamp (expecting local time format)
             dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
             return dt.strftime("%H:%M:%S")
+        except (ValueError, AttributeError):
+            return str(timestamp_str) if timestamp_str else ""
+    
+    # Helper function to format timestamp for UTC column (full ISO format)
+    def format_time_utc(timestamp_str):
+        if not timestamp_str:
+            return ""
+        try:
+            # Return the full UTC timestamp string
+            return timestamp_str
         except (ValueError, AttributeError):
             return str(timestamp_str) if timestamp_str else ""
     
@@ -272,7 +325,9 @@ def export_session_excel(session_name: str, infringements: list, session_info: d
     start_row = 6 if session_info else 1
     headers = [
         "ID", "Kart Number", "Turn Number", "Description", "Observer",
-        "Warning Count", "Penalty Due", "Penalty Description", "Penalty Taken", "Timestamp"
+        "Warning Count", "Penalty Due", "Penalty Description", 
+        "Penalty Taken", "Timestamp",
+        "Penalty Taken (UTC)", "Timestamp (UTC)"  # UTC columns (will be hidden)
     ]
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=start_row, column=col, value=header)
@@ -282,8 +337,10 @@ def export_session_excel(session_name: str, infringements: list, session_info: d
     
     # Write infringement data
     for inf in infringements:
-        timestamp_str = inf.get("timestamp", "")
-        penalty_taken_str = inf.get("penalty_taken", "")
+        timestamp_local_str = inf.get("timestamp_local", "")
+        timestamp_utc_str = inf.get("timestamp", "")
+        penalty_taken_local_str = inf.get("penalty_taken_local", "")
+        penalty_taken_utc_str = inf.get("penalty_taken", "")
         
         row = [
             inf.get("id", ""),
@@ -294,10 +351,18 @@ def export_session_excel(session_name: str, infringements: list, session_info: d
             inf.get("warning_count", ""),
             inf.get("penalty_due", ""),
             inf.get("penalty_description", ""),
-            format_time(penalty_taken_str),
-            format_time(timestamp_str)
+            format_time_local(penalty_taken_local_str),  # Local time (main column)
+            format_time_local(timestamp_local_str),  # Local time (main column)
+            format_time_utc(penalty_taken_utc_str),  # UTC (hidden column for import)
+            format_time_utc(timestamp_utc_str)  # UTC (hidden column for import)
         ]
         ws.append(row)
+    
+    # Hide UTC columns (last 2 columns)
+    utc_col_penalty = get_column_letter(len(headers) - 1)
+    utc_col_timestamp = get_column_letter(len(headers))
+    ws.column_dimensions[utc_col_penalty].hidden = True
+    ws.column_dimensions[utc_col_timestamp].hidden = True
     
     # Auto-adjust column widths
     for col in range(1, len(headers) + 1):
@@ -317,7 +382,8 @@ def export_session_excel(session_name: str, infringements: list, session_info: d
     if has_history:
         ws2 = wb.create_sheet("History")
         history_headers = [
-            "Infringement ID", "Action", "Performed By", "Observer", "Details", "Timestamp"
+            "Infringement ID", "Action", "Performed By", "Observer", "Details", 
+            "Timestamp", "Timestamp (UTC)"  # UTC column (will be hidden)
         ]
         
         for col, header in enumerate(history_headers, 1):
@@ -328,15 +394,22 @@ def export_session_excel(session_name: str, infringements: list, session_info: d
         
         for inf in infringements:
             for hist in inf.get("history", []):
+                timestamp_local_str = hist.get("timestamp_local", "")
+                timestamp_utc_str = hist.get("timestamp", "")
                 row = [
                     inf.get("id", ""),
                     hist.get("action", ""),
                     hist.get("performed_by", ""),
                     hist.get("observer", ""),
                     hist.get("details", ""),
-                    format_time(hist.get("timestamp", ""))
+                    format_time_local(timestamp_local_str),  # Local time (main column)
+                    format_time_utc(timestamp_utc_str)  # UTC (hidden column for import)
                 ]
                 ws2.append(row)
+        
+        # Hide UTC column (last column)
+        history_utc_col = get_column_letter(len(history_headers))
+        ws2.column_dimensions[history_utc_col].hidden = True
         
         # Auto-adjust column widths for history sheet
         for col in range(1, len(history_headers) + 1):
@@ -423,6 +496,8 @@ def import_session_excel(file_path: str) -> dict:
         headers.append(str(cell_value).strip())
     
     # Map headers to field names
+    # Priority: UTC columns first, then fall back to regular columns
+    # Local time columns are ignored during import
     header_map = {
         "ID": "id",
         "Kart Number": "kart_number",
@@ -432,8 +507,10 @@ def import_session_excel(file_path: str) -> dict:
         "Warning Count": "warning_count",
         "Penalty Due": "penalty_due",
         "Penalty Description": "penalty_description",
-        "Penalty Taken": "penalty_taken",
-        "Timestamp": "timestamp"
+        "Penalty Taken (UTC)": "penalty_taken",  # Prefer UTC column
+        "Penalty Taken": "penalty_taken_fallback",  # Fallback if no UTC column
+        "Timestamp (UTC)": "timestamp",  # Prefer UTC column
+        "Timestamp": "timestamp_fallback"  # Fallback if no UTC column
     }
     
     # Read infringement data
@@ -467,7 +544,8 @@ def import_session_excel(file_path: str) -> dict:
                     inf[field_name] = str(cell_value).strip() if cell_value is not None else None
                 except (ValueError, TypeError):
                     inf[field_name] = None
-            elif field_name in ["penalty_taken", "timestamp"]:
+            elif field_name == "penalty_taken":
+                # Priority: Use UTC column if available
                 if cell_value:
                     try:
                         if isinstance(cell_value, datetime):
@@ -478,6 +556,44 @@ def import_session_excel(file_path: str) -> dict:
                         inf[field_name] = str(cell_value) if cell_value else None
                 else:
                     inf[field_name] = None
+            elif field_name == "penalty_taken_fallback":
+                # Fallback: Only use if penalty_taken not already set
+                if "penalty_taken" not in inf or not inf.get("penalty_taken"):
+                    if cell_value:
+                        try:
+                            if isinstance(cell_value, datetime):
+                                inf["penalty_taken"] = cell_value.isoformat()
+                            else:
+                                inf["penalty_taken"] = date_parser.parse(str(cell_value)).isoformat()
+                        except:
+                            inf["penalty_taken"] = str(cell_value) if cell_value else None
+                    else:
+                        inf["penalty_taken"] = None
+            elif field_name == "timestamp":
+                # Priority: Use UTC column if available
+                if cell_value:
+                    try:
+                        if isinstance(cell_value, datetime):
+                            inf[field_name] = cell_value.isoformat()
+                        else:
+                            inf[field_name] = date_parser.parse(str(cell_value)).isoformat()
+                    except:
+                        inf[field_name] = str(cell_value) if cell_value else None
+                else:
+                    inf[field_name] = None
+            elif field_name == "timestamp_fallback":
+                # Fallback: Only use if timestamp not already set
+                if "timestamp" not in inf or not inf.get("timestamp"):
+                    if cell_value:
+                        try:
+                            if isinstance(cell_value, datetime):
+                                inf["timestamp"] = cell_value.isoformat()
+                            else:
+                                inf["timestamp"] = date_parser.parse(str(cell_value)).isoformat()
+                        except:
+                            inf["timestamp"] = str(cell_value) if cell_value else None
+                    else:
+                        inf["timestamp"] = None
             elif field_name == "penalty_due":
                 inf[field_name] = str(cell_value).strip() if cell_value else "No"
             else:
@@ -515,7 +631,8 @@ def import_session_excel(file_path: str) -> dict:
                 "Performed By": "performed_by",
                 "Observer": "observer",
                 "Details": "details",
-                "Timestamp": "timestamp"
+                "Timestamp (UTC)": "timestamp",  # Prefer UTC column
+                "Timestamp": "timestamp_fallback"  # Fallback if no UTC column
             }
             
             # Read history data
@@ -538,6 +655,7 @@ def import_session_excel(file_path: str) -> dict:
                         except (ValueError, TypeError):
                             hist[field_name] = None
                     elif field_name == "timestamp":
+                        # Priority: Use UTC column if available
                         if cell_value:
                             try:
                                 if isinstance(cell_value, datetime):
@@ -548,6 +666,19 @@ def import_session_excel(file_path: str) -> dict:
                                 hist[field_name] = str(cell_value) if cell_value else None
                         else:
                             hist[field_name] = None
+                    elif field_name == "timestamp_fallback":
+                        # Fallback: Only use if timestamp not already set
+                        if "timestamp" not in hist or not hist.get("timestamp"):
+                            if cell_value:
+                                try:
+                                    if isinstance(cell_value, datetime):
+                                        hist["timestamp"] = cell_value.isoformat()
+                                    else:
+                                        hist["timestamp"] = date_parser.parse(str(cell_value)).isoformat()
+                                except:
+                                    hist["timestamp"] = str(cell_value) if cell_value else None
+                            else:
+                                hist["timestamp"] = None
                     else:
                         hist[field_name] = str(cell_value).strip() if cell_value else None
                 
@@ -631,6 +762,8 @@ def import_session_csv(file_path: str) -> dict:
     headers = [h.strip() for h in rows[header_row_idx]]
     
     # Map headers to field names
+    # Priority: UTC columns first, then fall back to regular columns
+    # Local time columns are ignored during import
     header_map = {
         "ID": "id",
         "Kart Number": "kart_number",
@@ -640,8 +773,10 @@ def import_session_csv(file_path: str) -> dict:
         "Warning Count": "warning_count",
         "Penalty Due": "penalty_due",
         "Penalty Description": "penalty_description",
-        "Penalty Taken": "penalty_taken",
-        "Timestamp": "timestamp"
+        "Penalty Taken (UTC)": "penalty_taken",  # Prefer UTC column
+        "Penalty Taken": "penalty_taken_fallback",  # Fallback if no UTC column
+        "Timestamp (UTC)": "timestamp",  # Prefer UTC column
+        "Timestamp": "timestamp_fallback"  # Fallback if no UTC column
     }
     
     # Read infringement data
@@ -684,7 +819,8 @@ def import_session_csv(file_path: str) -> dict:
                     inf[field_name] = None
             elif field_name == "turn_number":
                 inf[field_name] = value if value else None
-            elif field_name in ["penalty_taken", "timestamp"]:
+            elif field_name == "penalty_taken":
+                # Priority: Use UTC column if available
                 if value:
                     try:
                         inf[field_name] = date_parser.parse(value).isoformat()
@@ -692,6 +828,35 @@ def import_session_csv(file_path: str) -> dict:
                         inf[field_name] = value
                 else:
                     inf[field_name] = None
+            elif field_name == "penalty_taken_fallback":
+                # Fallback: Only use if penalty_taken not already set
+                if "penalty_taken" not in inf or not inf.get("penalty_taken"):
+                    if value:
+                        try:
+                            inf["penalty_taken"] = date_parser.parse(value).isoformat()
+                        except:
+                            inf["penalty_taken"] = value
+                    else:
+                        inf["penalty_taken"] = None
+            elif field_name == "timestamp":
+                # Priority: Use UTC column if available
+                if value:
+                    try:
+                        inf[field_name] = date_parser.parse(value).isoformat()
+                    except:
+                        inf[field_name] = value
+                else:
+                    inf[field_name] = None
+            elif field_name == "timestamp_fallback":
+                # Fallback: Only use if timestamp not already set
+                if "timestamp" not in inf or not inf.get("timestamp"):
+                    if value:
+                        try:
+                            inf["timestamp"] = date_parser.parse(value).isoformat()
+                        except:
+                            inf["timestamp"] = value
+                    else:
+                        inf["timestamp"] = None
             elif field_name == "penalty_due":
                 inf[field_name] = value if value else "No"
             else:
@@ -725,7 +890,8 @@ def import_session_csv(file_path: str) -> dict:
                 "Performed By": "performed_by",
                 "Observer": "observer",
                 "Details": "details",
-                "Timestamp": "timestamp"
+                "Timestamp (UTC)": "timestamp",  # Prefer UTC column
+                "Timestamp": "timestamp_fallback"  # Fallback if no UTC column
             }
             
             for row_idx in range(history_header_idx + 1, len(rows)):
@@ -749,6 +915,7 @@ def import_session_csv(file_path: str) -> dict:
                         except:
                             hist[field_name] = None
                     elif field_name == "timestamp":
+                        # Priority: Use UTC column if available
                         if value:
                             try:
                                 hist[field_name] = date_parser.parse(value).isoformat()
@@ -756,6 +923,16 @@ def import_session_csv(file_path: str) -> dict:
                                 hist[field_name] = value
                         else:
                             hist[field_name] = None
+                    elif field_name == "timestamp_fallback":
+                        # Fallback: Only use if timestamp not already set
+                        if "timestamp" not in hist or not hist.get("timestamp"):
+                            if value:
+                                try:
+                                    hist["timestamp"] = date_parser.parse(value).isoformat()
+                                except:
+                                    hist["timestamp"] = value
+                            else:
+                                hist["timestamp"] = None
                     else:
                         hist[field_name] = value if value else None
                 

@@ -118,6 +118,7 @@ export interface CreateInfringementPayload {
   observer?: string | null;
   performed_by?: string | null;
   penalty_description?: string | null;
+  timestamp?: string | null;
 }
 
 export type UpdateInfringementPayload = CreateInfringementPayload;

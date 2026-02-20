@@ -360,8 +360,15 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
 
       currentEditId = Number(id);
       document.getElementById("editKart").value = inf.kart_number || "";
-      document.getElementById("editTurn").value = inf.turn_number || "";
-      document.getElementById("editObserver").value = inf.observer || "";
+      let turnValue = inf.turn_number ? String(inf.turn_number) : "";
+      let observerValue = inf.observer || "";
+      if (turnValue.trim() === "" && observerValue.trim() !== "") {
+        turnValue = observerValue;
+      } else if (observerValue.trim() === "" && turnValue.trim() !== "") {
+        observerValue = turnValue;
+      }
+      document.getElementById("editTurn").value = turnValue;
+      document.getElementById("editObserver").value = observerValue;
       
       // Parse description to extract infringement type and second kart number
       const description = inf.description || "";
@@ -472,6 +479,18 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     }
   }
 
+  function handleTurnInput() {
+    const turnInput = document.getElementById("editTurn");
+    const observerInput = document.getElementById("editObserver");
+    observerInput.value = turnInput.value;
+  }
+
+  function handleObserverInput() {
+    const turnInput = document.getElementById("editTurn");
+    const observerInput = document.getElementById("editObserver");
+    turnInput.value = observerInput.value;
+  }
+
   // Event listeners
   document.getElementById("searchInput").addEventListener("input", filterTable);
   document.getElementById("filterSelect").addEventListener("change", filterTable);
@@ -489,6 +508,8 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
   document.getElementById("cancelEdit").addEventListener("click", closeModal);
   document.getElementById("editInfringement").addEventListener("change", handleInfringementChange);
   document.getElementById("editPenalty").addEventListener("change", handlePenaltyChange);
+  document.getElementById("editTurn").addEventListener("input", handleTurnInput);
+  document.getElementById("editObserver").addEventListener("input", handleObserverInput);
 
   // Edit form submission
   document.getElementById("editForm").addEventListener("submit", async function(e) {

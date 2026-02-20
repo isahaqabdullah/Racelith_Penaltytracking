@@ -43,6 +43,14 @@ def _normalize_turn_number(value):
     except Exception:
         return None
 
+def _normalize_timestamp(value):
+    """Use client timestamp when provided, otherwise current UTC time."""
+    if value is None:
+        return datetime.now(timezone.utc)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
 @router.post("/", response_model=InfringementResponse)
 def create_infringement(payload: InfringementCreate, db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
     """
@@ -55,7 +63,7 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
         # Handle optional description - default to empty string if not provided
         description = payload.description or ""
         desc_lower = description.strip().lower() if description else ""
-        now = datetime.now(timezone.utc)
+        now = _normalize_timestamp(payload.timestamp)
         expiry_threshold = now - timedelta(minutes=get_warning_expiry_minutes())
 
         warning_count = 0

@@ -59,6 +59,7 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [warningExpiryMinutes, setWarningExpiryMinutes] = useState<number>(180);
   const [showExpirySettings, setShowExpirySettings] = useState<boolean>(false);
+  const [isQualifyingMode, setIsQualifyingMode] = useState<boolean>(false);
   const [isSavingConfig, setIsSavingConfig] = useState<boolean>(false);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
@@ -247,19 +248,25 @@ export default function App() {
     };
   }, [infringements, loadData, deleteInfringement]);
 
-  const handleNewInfringement = async (payload: CreateInfringementPayload) => {
+  const handleNewInfringement = async (payloads: CreateInfringementPayload[]) => {
     try {
-      await createInfringement({
-        ...payload,
-        performed_by: payload.performed_by || DEFAULT_PERFORMED_BY,
-      });
+      for (const payload of payloads) {
+        await createInfringement({
+          ...payload,
+          performed_by: payload.performed_by || DEFAULT_PERFORMED_BY,
+        });
+      }
       // Go to page 1 to show new infringement (newest appear first)
       setPaginationPage(1);
       // Reload data to show new infringement
       await loadData(false);
       const pending = await fetchPendingPenalties();
       setPendingPenalties(pending);
-      toast.success('Infringement created successfully');
+      toast.success(
+        payloads.length > 1
+          ? `${payloads.length} infringements created successfully`
+          : 'Infringement created successfully'
+      );
       // Notify popup window
       if (popupWindowRef.current && !popupWindowRef.current.closed) {
         popupWindowRef.current.postMessage({ type: 'updateInfringements' }, '*');
@@ -400,6 +407,10 @@ export default function App() {
     }
   };
 
+  const handleToggleQualifyingMode = () => {
+    setIsQualifyingMode((prev) => !prev);
+  };
+
   const handlePasswordSubmit = () => {
     if (passwordInput === 'kart123') {
       setShowExpirySettings(true);
@@ -449,6 +460,19 @@ export default function App() {
                       checked={showExpirySettings}
                       onCheckedChange={handleToggleExpirySettings}
                     />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      id="qualifying-mode-toggle"
+                      type="button"
+                      size="sm"
+                      variant={isQualifyingMode ? 'default' : 'outline'}
+                      onClick={handleToggleQualifyingMode}
+                      className="h-8 text-xs px-3"
+                      aria-pressed={isQualifyingMode}
+                    >
+                      {`Qualifying: ${isQualifyingMode ? 'ON' : 'OFF'}`}
+                    </Button>
                   </div>
                   {showExpirySettings && (
                     <div className="flex items-center gap-2">
@@ -516,7 +540,10 @@ export default function App() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1fr_1.4fr] gap-6">
             <div className="min-h-0">
-              <InfringementForm onSubmit={handleNewInfringement} />
+              <InfringementForm
+                onSubmit={handleNewInfringement}
+                isQualifyingMode={isQualifyingMode}
+              />
             </div>
             <div className="min-h-0">
               <PendingPenalties 

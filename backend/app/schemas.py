@@ -8,6 +8,7 @@ class InfringementCreate(BaseModel):
     description: Optional[str] = None
     observer: Optional[str] = None
     performed_by: Optional[str] = None
+    timestamp: Optional[datetime] = None
     # Optional future fields
     penalty_due: Optional[str] = None
     penalty_description: Optional[str] = None

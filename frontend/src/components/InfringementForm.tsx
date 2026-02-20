@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Combobox } from './ui/combobox';
+import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import type { CreateInfringementPayload } from '../api';
 
 const INFRINGEMENT_OPTIONS = [
   'White Line Infringement',
   'Yellow Zone Infringement',
+  'Track Limits',
   'Advantage by Contact',
   'Contact',
   'Overtaking under yellow flag',
@@ -20,7 +22,6 @@ const INFRINGEMENT_OPTIONS = [
   'Ignoring Flags',
   'Pit Lane Speed',
   'Advantage-Exceeding track limits',
-  'Track Limits',
   'Other',
 ];
 
@@ -40,11 +41,74 @@ const PENALTY_OPTIONS = [
   'Black Flag',
 ];
 
+const QUALIFYING_AUTO_PENALTY = 'Fastest Lap Invalidation';
+const QUALIFYING_AUTO_TYPES = new Set([
+  'White Line Infringement',
+  'Yellow Zone Infringement',
+  'Track Limits',
+]);
+
+const DEFAULT_WARNING_TYPES = new Set([
+  'White Line Infringement',
+  'Yellow Zone Infringement',
+]);
+
 interface InfringementFormProps {
-  onSubmit: (payload: CreateInfringementPayload) => Promise<void> | void;
+  onSubmit: (payloads: CreateInfringementPayload[]) => Promise<void> | void;
+  isQualifyingMode: boolean;
 }
 
-export function InfringementForm({ onSubmit }: InfringementFormProps) {
+interface KartToken {
+  value: string;
+  isValid: boolean;
+}
+
+const KART_TOKEN_REGEX = /^\d+$/;
+
+const sanitizeKartInput = (value: string) => value.replace(/^\s+/, '');
+
+const parseKartTokens = (value: string): KartToken[] =>
+  sanitizeKartInput(value)
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => ({
+      value: token,
+      isValid: KART_TOKEN_REGEX.test(token),
+    }));
+
+const isEditableElement = (element: Element | null): boolean => {
+  if (!(element instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (element.isContentEditable) {
+    return true;
+  }
+
+  const tagName = element.tagName.toLowerCase();
+  if (tagName === 'textarea' || tagName === 'select') {
+    return true;
+  }
+
+  if (tagName === 'input') {
+    const input = element as HTMLInputElement;
+    return !input.readOnly && !input.disabled;
+  }
+
+  return false;
+};
+
+const getKartTokenStyle = (token: string) => {
+  const kartNumber = Number(token);
+  const hue = (kartNumber * 37) % 360;
+  return {
+    backgroundColor: `hsl(${hue} 82% 92%)`,
+    borderColor: `hsl(${hue} 56% 60%)`,
+    color: `hsl(${hue} 56% 26%)`,
+  };
+};
+
+export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFormProps) {
   const [kartNumber, setKartNumber] = useState('');
   const [turn, setTurn] = useState('');
   const [observer, setObserver] = useState('');
@@ -52,23 +116,138 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
   const [penaltyDescription, setPenaltyDescription] = useState('');
   const [secondKartNumber, setSecondKartNumber] = useState('');
   const [lapNumber, setLapNumber] = useState('');
+  const [draftTimestamp, setDraftTimestamp] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const kartInputRef = useRef<HTMLInputElement | null>(null);
+  const kartTokens = useMemo(() => parseKartTokens(kartNumber), [kartNumber]);
+  const hasInvalidKartTokens = useMemo(
+    () => kartTokens.some((token) => !token.isValid),
+    [kartTokens]
+  );
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const ensureDraftTimestamp = useCallback(() => {
+    setDraftTimestamp((existing) => existing ?? new Date().toISOString());
+  }, []);
+
+  const getAutoPenaltyForInfringement = useCallback(
+    (infringementType: string): string | null => {
+      if (isQualifyingMode && QUALIFYING_AUTO_TYPES.has(infringementType)) {
+        return QUALIFYING_AUTO_PENALTY;
+      }
+      if (!isQualifyingMode && DEFAULT_WARNING_TYPES.has(infringementType)) {
+        return 'Warning';
+      }
+      return null;
+    },
+    [isQualifyingMode]
+  );
+
+  const handleKartNumberChange = (nextValue: string) => {
+    const sanitized = sanitizeKartInput(nextValue);
+    setKartNumber(sanitized);
+    if (sanitized.trim() !== '') {
+      ensureDraftTimestamp();
+    }
+  };
+
+  const handleTurnChange = (nextValue: string) => {
+    setTurn(nextValue);
+    setObserver(nextValue);
+    if (nextValue.trim() !== '') {
+      ensureDraftTimestamp();
+    }
+  };
+
+  const handleObserverChange = (nextValue: string) => {
+    setObserver(nextValue);
+    setTurn(nextValue);
+    if (nextValue.trim() !== '') {
+      ensureDraftTimestamp();
+    }
+  };
+
+  useEffect(() => {
+    const allFieldsEmpty =
+      kartNumber.trim() === '' &&
+      turn.trim() === '' &&
+      observer.trim() === '' &&
+      infringement.trim() === '' &&
+      penaltyDescription.trim() === '' &&
+      secondKartNumber.trim() === '' &&
+      lapNumber.trim() === '';
+
+    if (allFieldsEmpty) {
+      setDraftTimestamp(null);
+    }
+  }, [kartNumber, turn, observer, infringement, penaltyDescription, secondKartNumber, lapNumber]);
+
+  useEffect(() => {
+    const handleGlobalTyping = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) {
+        return;
+      }
+
+      if (event.ctrlKey || event.metaKey || event.altKey) {
+        return;
+      }
+
+      if (event.key.length !== 1) {
+        return;
+      }
+
+      if (isEditableElement(document.activeElement)) {
+        return;
+      }
+
+      const nextChar = event.key;
+      if (nextChar === ' ' && sanitizeKartInput(kartNumber) === '') {
+        event.preventDefault();
+        return;
+      }
+
+      event.preventDefault();
+      const input = kartInputRef.current;
+      if (!input) {
+        return;
+      }
+
+      const nextValue = sanitizeKartInput(`${kartNumber}${nextChar}`);
+      setKartNumber(nextValue);
+      input.focus();
+      window.requestAnimationFrame(() => {
+        const cursor = nextValue.length;
+        input.setSelectionRange(cursor, cursor);
+      });
+
+      if (nextValue.trim() !== '') {
+        ensureDraftTimestamp();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalTyping);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalTyping);
+    };
+  }, [kartNumber, ensureDraftTimestamp]);
+
+  useEffect(() => {
+    const autoPenalty = getAutoPenaltyForInfringement(infringement);
+    if (autoPenalty) {
+      setPenaltyDescription(autoPenalty);
+    }
+  }, [infringement, isQualifyingMode, getAutoPenaltyForInfringement]);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
-    // Only kart number is required
-    if (!kartNumber) {
+
+    if (kartTokens.length === 0 || hasInvalidKartTokens) {
       return;
     }
 
-    const parsedKart = Number(kartNumber);
     const turnValue = turn.trim() === '' ? null : turn.trim();
     const observerValue = observer.trim() === '' ? null : observer.trim();
-
-    if (!Number.isFinite(parsedKart)) {
-      return;
-    }
+    const timestampToUse = draftTimestamp ?? new Date().toISOString();
+    const parsedKarts = kartTokens.map((token) => Number(token.value));
 
     // Format description for "Advantage by Contact" or "Contact" with second kart number
     let finalDescription: string | null = infringement.trim() === '' ? null : infringement;
@@ -91,14 +270,17 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
 
     try {
       setIsSubmitting(true);
-      await onSubmit({
-        kart_number: parsedKart,
-        turn_number: turnValue,
-        description: finalDescription,
-        observer: observerValue,
-        penalty_description: finalPenaltyDescription,
-        performed_by: observerValue || null,
-      });
+      await onSubmit(
+        parsedKarts.map((parsedKart) => ({
+          kart_number: parsedKart,
+          turn_number: turnValue,
+          description: finalDescription,
+          observer: observerValue,
+          penalty_description: finalPenaltyDescription,
+          performed_by: observerValue || null,
+          timestamp: timestampToUse,
+        }))
+      );
 
       setKartNumber('');
       setTurn('');
@@ -107,6 +289,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
       setPenaltyDescription('');
       setSecondKartNumber('');
       setLapNumber('');
+      setDraftTimestamp(null);
     } finally {
       setIsSubmitting(false);
     }
@@ -125,11 +308,32 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
               <Input
                 id="kartNumber"
                 type="text"
+                ref={kartInputRef}
                 value={kartNumber}
-                onChange={(e) => setKartNumber(e.target.value)}
-                placeholder="e.g., 42"
+                onChange={(e) => handleKartNumberChange(e.target.value)}
+                placeholder="e.g., 42 or 37 46"
+                aria-invalid={hasInvalidKartTokens ? true : undefined}
                 required
               />
+              {kartTokens.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {kartTokens.map((token, index) => (
+                    <Badge
+                      key={`${token.value}-${index}`}
+                      variant={token.isValid ? 'outline' : 'destructive'}
+                      className="font-semibold"
+                      style={token.isValid ? getKartTokenStyle(token.value) : undefined}
+                    >
+                      {token.value}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {hasInvalidKartTokens && (
+                <p className="text-sm text-destructive">
+                  Kart number tokens must be numeric only.
+                </p>
+              )}
             </div>
 
             <div className="space-y-3">
@@ -138,7 +342,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
                 id="turn"
                 type="text"
                 value={turn}
-                onChange={(e) => setTurn(e.target.value)}
+                onChange={(e) => handleTurnChange(e.target.value)}
                 placeholder="e.g., 3"
               />
             </div>
@@ -150,7 +354,7 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
               id="observer"
               type="text"
               value={observer}
-              onChange={(e) => setObserver(e.target.value)}
+              onChange={(e) => handleObserverChange(e.target.value)}
               placeholder="Observer name (optional)"
             />
           </div>
@@ -176,15 +380,16 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
               value={infringement}
               onValueChange={(value: string) => {
                 setInfringement(value);
+                if (value.trim() !== '') {
+                  ensureDraftTimestamp();
+                }
                 // Clear second kart number if not "Advantage by Contact" or "Contact"
                 if (value !== 'Advantage by Contact' && value !== 'Contact') {
                   setSecondKartNumber('');
                 }
-                if (
-                  value === 'White Line Infringement' ||
-                  value === 'Yellow Zone Infringement'
-                ) {
-                  setPenaltyDescription('Warning');
+                const autoPenalty = getAutoPenaltyForInfringement(value);
+                if (autoPenalty) {
+                  setPenaltyDescription(autoPenalty);
                 }
               }}
               placeholder="Select or type infringement type "
@@ -198,7 +403,13 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
                 id="secondKartNumber"
                 type="text"
                 value={secondKartNumber}
-                onChange={(e) => setSecondKartNumber(e.target.value)}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  setSecondKartNumber(nextValue);
+                  if (nextValue.trim() !== '') {
+                    ensureDraftTimestamp();
+                  }
+                }}
                 placeholder="e.g., 15"
               />
             </div>
@@ -225,6 +436,9 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
               value={penaltyDescription}
               onValueChange={(value: string) => {
                 setPenaltyDescription(value);
+                if (value.trim() !== '') {
+                  ensureDraftTimestamp();
+                }
                 // Clear lap number if not "Lap Invalidation"
                 if (value !== 'Lap Invalidation') {
                   setLapNumber('');
@@ -241,14 +455,24 @@ export function InfringementForm({ onSubmit }: InfringementFormProps) {
                 id="lapNumber"
                 type="text"
                 value={lapNumber}
-                onChange={(e) => setLapNumber(e.target.value)}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  setLapNumber(nextValue);
+                  if (nextValue.trim() !== '') {
+                    ensureDraftTimestamp();
+                  }
+                }}
                 placeholder="e.g., 5"
               />
             </div>
           )}
 
           <div className="pt-2">
-            <Button type="submit" className="w-full">
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting || kartTokens.length === 0 || hasInvalidKartTokens}
+            >
               {isSubmitting ? 'Logging...' : 'Log Infringement'}
             </Button>
           </div>

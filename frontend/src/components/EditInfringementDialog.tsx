@@ -15,6 +15,7 @@ import type { UpdateInfringementPayload, InfringementRecord } from '../api';
 const INFRINGEMENT_OPTIONS = [
   'White Line Infringement',
   'Yellow Zone Infringement',
+  'Track Limits',
   'Advantage by Contact',
   'Contact',
   'Overtaking under yellow flag',
@@ -26,7 +27,6 @@ const INFRINGEMENT_OPTIONS = [
   'Ignoring Flags',
   'Pit Lane Speed',
   'Advantage-Exceeding track limits',
-  'Track Limits',
   'Other',
 ];
 
@@ -69,16 +69,34 @@ export function EditInfringementDialog({
   const [secondKartNumber, setSecondKartNumber] = useState('');
   const [lapNumber, setLapNumber] = useState('');
 
+  const handleTurnChange = (nextValue: string) => {
+    setTurn(nextValue);
+    setObserver(nextValue);
+  };
+
+  const handleObserverChange = (nextValue: string) => {
+    setObserver(nextValue);
+    setTurn(nextValue);
+  };
+
   // Update form values when infringement changes
   useEffect(() => {
     if (infringement) {
       setKartNumber(String(infringement.kart_number));
-      setTurn(
+      const incomingTurn =
         infringement.turn_number === null || infringement.turn_number === undefined
           ? ''
-          : String(infringement.turn_number)
-      );
-      setObserver(infringement.observer ?? '');
+          : String(infringement.turn_number);
+      const incomingObserver = infringement.observer ?? '';
+      let syncedTurn = incomingTurn;
+      let syncedObserver = incomingObserver;
+      if (syncedTurn.trim() === '' && syncedObserver.trim() !== '') {
+        syncedTurn = syncedObserver;
+      } else if (syncedObserver.trim() === '' && syncedTurn.trim() !== '') {
+        syncedObserver = syncedTurn;
+      }
+      setTurn(syncedTurn);
+      setObserver(syncedObserver);
       
       // Parse description to extract infringement type and second kart number
       const description = infringement.description || '';
@@ -191,7 +209,7 @@ export function EditInfringementDialog({
                 id="edit-turn"
                 type="text"
                 value={turn}
-                onChange={(e) => setTurn(e.target.value)}
+                onChange={(e) => handleTurnChange(e.target.value)}
                 placeholder="e.g., 3"
               />
             </div>
@@ -203,7 +221,7 @@ export function EditInfringementDialog({
               id="edit-observer"
               type="text"
               value={observer}
-              onChange={(e) => setObserver(e.target.value)}
+              onChange={(e) => handleObserverChange(e.target.value)}
               placeholder="Observer name (optional)"
             />
           </div>

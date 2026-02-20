@@ -17,7 +17,7 @@ from .. import database as database_module
 from ..models import SessionInfo, Infringement, InfringementHistory
 from ..ws_manager import manager
 from ..vars import SESSION_EXPORT_DIR
-from ..utils import export_session_data, export_session_csv, export_session_excel, import_session_excel, import_session_csv, validate_session_name
+from ..utils import export_session_data, export_session_csv, export_session_excel, import_session_excel, import_session_csv, validate_session_name, utc_to_local
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -343,6 +343,19 @@ def export_session(name: str, format: str = "json"):
                     InfringementHistory.infringement_id == inf.id
                 ).order_by(InfringementHistory.timestamp.desc()).all()
                 
+                # Convert UTC timestamps to local time for display
+                timestamp_utc = inf.timestamp.isoformat() if inf.timestamp else None
+                penalty_taken_utc = inf.penalty_taken.isoformat() if inf.penalty_taken else None
+                
+                timestamp_local = None
+                penalty_taken_local = None
+                if inf.timestamp:
+                    timestamp_local_dt = utc_to_local(inf.timestamp)
+                    timestamp_local = timestamp_local_dt.isoformat()
+                if inf.penalty_taken:
+                    penalty_taken_local_dt = utc_to_local(inf.penalty_taken)
+                    penalty_taken_local = penalty_taken_local_dt.isoformat()
+                
                 inf_dict = {
                     "id": inf.id,
                     "kart_number": inf.kart_number,
@@ -352,25 +365,35 @@ def export_session(name: str, format: str = "json"):
                     "warning_count": inf.warning_count,
                     "penalty_due": inf.penalty_due,
                     "penalty_description": inf.penalty_description,
-                    "penalty_taken": inf.penalty_taken.isoformat() if inf.penalty_taken else None,
-                    "timestamp": inf.timestamp.isoformat() if inf.timestamp else None,
+                    "penalty_taken": penalty_taken_utc,  # Keep UTC for import compatibility
+                    "penalty_taken_local": penalty_taken_local,  # Local time for display
+                    "timestamp": timestamp_utc,  # Keep UTC for import compatibility
+                    "timestamp_local": timestamp_local,  # Local time for display
                     "history": [
                         {
                             "action": h.action,
                             "performed_by": h.performed_by,
                             "observer": h.observer,
                             "details": h.details,
-                            "timestamp": h.timestamp.isoformat() if h.timestamp else None
+                            "timestamp": h.timestamp.isoformat() if h.timestamp else None,
+                            "timestamp_local": utc_to_local(h.timestamp).isoformat() if h.timestamp else None
                         } for h in history
                     ]
                 }
                 infringements.append(inf_dict)
             
             # Prepare session info
+            started_at_utc = session_info.started_at.isoformat() if session_info.started_at else None
+            started_at_local = None
+            if session_info.started_at:
+                started_at_local_dt = utc_to_local(session_info.started_at)
+                started_at_local = started_at_local_dt.isoformat()
+            
             session_info_dict = {
                 "name": session_info.name,
                 "status": session_info.status,
-                "started_at": session_info.started_at.isoformat() if session_info.started_at else None
+                "started_at": started_at_utc,  # Keep UTC for import compatibility
+                "started_at_local": started_at_local  # Local time for display
             }
             
             # Export based on format
