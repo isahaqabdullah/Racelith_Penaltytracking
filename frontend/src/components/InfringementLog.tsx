@@ -24,16 +24,18 @@ interface InfringementLogProps {
   onEdit: (infringement: InfringementRecord) => void;
   onDelete: (id: number) => void;
   warningExpiryMinutes?: number;
+  serverTimeOffsetMs?: number;
   onPopupOpened?: (window: Window) => void;
   pagination?: PaginationProps;
 }
 
 type FilterType = 'all' | 'warning-flag' | 'penalties';
 
-export function InfringementLog({ infringements, onEdit, onDelete, warningExpiryMinutes = 180, onPopupOpened, pagination }: InfringementLogProps) {
+export function InfringementLog({ infringements, onEdit, onDelete, warningExpiryMinutes = 180, serverTimeOffsetMs = 0, onPopupOpened, pagination }: InfringementLogProps) {
   const [searchKartNumber, setSearchKartNumber] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
   const popupWindowRef = useRef<Window | null>(null);
+  const getServerNow = () => new Date(Date.now() + serverTimeOffsetMs);
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('en-US', {
@@ -59,7 +61,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
   const isWarningExpired = (inf: InfringementRecord) => {
     if (inf.penalty_description !== 'Warning') return false;
     const timestamp = new Date(inf.timestamp);
-    const now = new Date();
+    const now = getServerNow();
     const diffMinutes = (now.getTime() - timestamp.getTime()) / (1000 * 60);
     return diffMinutes > warningExpiryMinutes;
   };
@@ -81,7 +83,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
     if (isWarningExpired(inf)) return null;
     
     // Calculate the actual current warning count by counting all valid (non-expired) warnings
-    const now = new Date();
+    const now = getServerNow();
     const expiryThreshold = new Date(now.getTime() - warningExpiryMinutes * 60 * 1000);
     
     // Find the last penalty for this kart and infringement type (if any)
@@ -153,7 +155,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
     
     // Calculate the actual current warning count by counting all valid (non-expired) warnings
     // for the same kart and same infringement type, up to and including this one
-    const now = new Date();
+    const now = getServerNow();
     const expiryThreshold = new Date(now.getTime() - warningExpiryMinutes * 60 * 1000);
     
     // Find the last penalty (pending or applied) for this kart and infringement type (if any)
@@ -260,7 +262,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
       const expiryMins = warningExpiryMinutes || 180;
       
       // Generate HTML using the refactored template
-      const htmlContent = generatePopupHTML(apiBase, expiryMins);
+      const htmlContent = generatePopupHTML(apiBase, expiryMins, serverTimeOffsetMs);
 
       // Write content to the window
       try {
@@ -293,7 +295,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
   const isExpired = (inf: InfringementRecord) => {
     if (inf.penalty_description !== 'Warning') return false;
     const timestamp = new Date(inf.timestamp);
-    const now = new Date();
+    const now = getServerNow();
     const diffMinutes = (now.getTime() - timestamp.getTime()) / (1000 * 60);
     return diffMinutes > warningExpiryMinutes;
   };
@@ -440,7 +442,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                     // Check if warning is expired based on configurable expiry time
                     const isExpiredWarning = isWarning && (() => {
                       const timestamp = new Date(inf.timestamp);
-                      const now = new Date();
+                      const now = getServerNow();
                       const diffMinutes = (now.getTime() - timestamp.getTime()) / (1000 * 60);
                       return diffMinutes > warningExpiryMinutes;
                     })();

@@ -51,6 +51,30 @@ def _normalize_timestamp(value):
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
 
+def _iso_utc(value):
+    """Serialize datetimes as explicit UTC so browsers do not parse them as local time."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return value.isoformat().replace("+00:00", "Z")
+
+def _infringement_payload(inf: Infringement):
+    return {
+        "id": inf.id,
+        "kart_number": inf.kart_number,
+        "turn_number": inf.turn_number,
+        "description": inf.description,
+        "observer": inf.observer,
+        "warning_count": inf.warning_count,
+        "penalty_due": inf.penalty_due,
+        "penalty_description": inf.penalty_description,
+        "penalty_taken": _iso_utc(inf.penalty_taken),
+        "timestamp": _iso_utc(inf.timestamp),
+    }
+
 @router.post("/", response_model=InfringementResponse)
 def create_infringement(payload: InfringementCreate, db: Session = Depends(get_db), background_tasks: BackgroundTasks = None):
     """
@@ -219,7 +243,7 @@ def create_infringement(payload: InfringementCreate, db: Session = Depends(get_d
                     "warning_count": new_inf.warning_count,
                     "penalty_due": new_inf.penalty_due,
                     "penalty_description": new_inf.penalty_description,
-                    "timestamp": new_inf.timestamp.isoformat()
+                    "timestamp": _iso_utc(new_inf.timestamp)
                 }
             }))
         else:
@@ -279,11 +303,12 @@ def list_infringements(
         
         # Return with pagination metadata
         return {
-            "items": infringements,
+            "items": [_infringement_payload(inf) for inf in infringements],
             "total": total_count,
             "page": page,
             "limit": limit,
-            "total_pages": total_pages
+            "total_pages": total_pages,
+            "server_time_utc": _iso_utc(datetime.now(timezone.utc)),
         }
     except (ProgrammingError, OperationalError) as e:
         handle_db_error(e)
@@ -456,7 +481,7 @@ def update_infringement(
                     "warning_count": inf.warning_count,
                     "penalty_due": inf.penalty_due,
                     "penalty_description": inf.penalty_description,
-                    "timestamp": inf.timestamp.isoformat()
+                    "timestamp": _iso_utc(inf.timestamp)
                 }
             }))
 

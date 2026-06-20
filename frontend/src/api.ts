@@ -136,6 +136,7 @@ export interface PaginatedInfringements {
   page: number;
   limit: number;
   total_pages: number;
+  server_time_utc?: string;
 }
 
 export async function fetchInfringements(page: number = 1, limit: number = 300): Promise<PaginatedInfringements> {
@@ -391,12 +392,31 @@ export interface AppConfig {
   warning_expiry_minutes: number;
 }
 
+export interface SessionConfig {
+  session_name: string;
+  qualifying_mode: boolean;
+}
+
 export async function getConfig(): Promise<AppConfig> {
   return request<AppConfig>('/api/config');
 }
 
 export async function updateConfig(config: AppConfig): Promise<AppConfig> {
   return request<AppConfig>('/api/config', {
+    method: 'PUT',
+    body: JSON.stringify(config),
+  });
+}
+
+export async function getSessionConfig(sessionName: string): Promise<SessionConfig> {
+  return request<SessionConfig>(`/api/session-config/${encodeURIComponent(sessionName)}`);
+}
+
+export async function updateSessionConfig(
+  sessionName: string,
+  config: Pick<SessionConfig, 'qualifying_mode'>
+): Promise<SessionConfig> {
+  return request<SessionConfig>(`/api/session-config/${encodeURIComponent(sessionName)}`, {
     method: 'PUT',
     body: JSON.stringify(config),
   });

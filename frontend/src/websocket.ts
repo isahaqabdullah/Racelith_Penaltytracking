@@ -15,7 +15,9 @@ type WebSocketMessageType =
   | 'session_loaded'
   | 'session_closed'
   | 'session_deleted'
-  | 'session_imported';
+  | 'session_imported'
+  | 'config_updated'
+  | 'session_config_updated';
 
 export interface WebSocketMessage {
   type: WebSocketMessageType;
@@ -218,4 +220,3 @@ if (typeof window !== 'undefined') {
     wsManager.disconnect();
   });
 }
-

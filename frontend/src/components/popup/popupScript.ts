@@ -2,16 +2,21 @@
  * JavaScript logic for the infringement log popup window
  * This generates the script that runs in the popup window
  */
-export function generatePopupScript(apiBase: string, warningExpiryMinutes: number): string {
+export function generatePopupScript(apiBase: string, warningExpiryMinutes: number, serverTimeOffsetMs: number = 0): string {
   // Escape the API base URL for safe embedding in JavaScript
   const apiBaseEscaped = JSON.stringify(apiBase);
   
   return `
 (function() {
   const API_BASE = ${apiBaseEscaped};
-  const WARNING_EXPIRY_MINUTES = ${warningExpiryMinutes};
+  let warningExpiryMinutes = ${warningExpiryMinutes};
+  let serverTimeOffsetMs = ${Number.isFinite(serverTimeOffsetMs) ? serverTimeOffsetMs : 0};
   let socket = null;
   let currentEditId = null;
+
+  function getServerNow() {
+    return new Date(Date.now() + serverTimeOffsetMs);
+  }
 
   // Format timestamp to readable time
   function formatTime(timestamp) {
@@ -27,9 +32,9 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
   function isExpired(inf) {
     if (inf.penalty_description !== "Warning") return false;
     const timestamp = new Date(inf.timestamp);
-    const now = new Date();
+    const now = getServerNow();
     const diffMinutes = (now.getTime() - timestamp.getTime()) / (1000 * 60);
-    return diffMinutes > WARNING_EXPIRY_MINUTES;
+    return diffMinutes > warningExpiryMinutes;
   }
 
   // Check if this is a penalty entry
@@ -82,8 +87,8 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     if (isExpired(inf)) return null;
     
     // Calculate the actual current warning count by counting all valid (non-expired) warnings
-    const now = new Date();
-    const expiryThreshold = new Date(now.getTime() - WARNING_EXPIRY_MINUTES * 60 * 1000);
+    const now = getServerNow();
+    const expiryThreshold = new Date(now.getTime() - warningExpiryMinutes * 60 * 1000);
     
     // Find the last penalty (pending or applied) for this kart and infringement type (if any)
     // penalty_due == "Yes" resets the cycle, but we also need to find applied penalties
@@ -154,8 +159,8 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     
     // Calculate the actual current warning count by counting all valid (non-expired) warnings
     // for the same kart and same infringement type, up to and including this one
-    const now = new Date();
-    const expiryThreshold = new Date(now.getTime() - WARNING_EXPIRY_MINUTES * 60 * 1000);
+    const now = getServerNow();
+    const expiryThreshold = new Date(now.getTime() - warningExpiryMinutes * 60 * 1000);
     
     // Find the last penalty (pending or applied) for this kart and infringement type (if any)
     // penalty_due == "Yes" resets the cycle, but we also need to find applied penalties
@@ -275,6 +280,9 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       }
 
       const responseData = await response.json();
+      if (responseData.server_time_utc) {
+        serverTimeOffsetMs = new Date(responseData.server_time_utc).getTime() - Date.now();
+      }
       // Handle paginated response format: { items: [...], total: ..., page: ..., limit: ..., total_pages: ... }
       // Or legacy array format for backwards compatibility
       const data = Array.isArray(responseData) ? responseData : (responseData.items || []);
@@ -615,6 +623,12 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
         const message = JSON.parse(e.data);
         if (["new_infringement", "update_infringement", "delete_infringement", "penalty_applied"].includes(message.type)) {
           refreshTable();
+        } else if (message.type === "config_updated") {
+          const nextExpiry = Number(message.data && message.data.warning_expiry_minutes);
+          if (Number.isFinite(nextExpiry) && nextExpiry >= 1) {
+            warningExpiryMinutes = nextExpiry;
+            refreshTable();
+          }
         }
       } catch (error) {
         console.error("WS error:", error);

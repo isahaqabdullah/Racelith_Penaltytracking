@@ -4,10 +4,3 @@ start.sh text eol=lf
 deploy.sh text eol=lf
 backup.sh text eol=lf
 backend/wait-for-db.sh text eol=lf
-
-# Make scripts executable when checked out
-start.sh filter=git-add-executable
-deploy.sh filter=git-add-executable
-backup.sh filter=git-add-executable
-backend/wait-for-db.sh filter=git-add-executable
-

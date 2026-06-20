@@ -27,10 +27,12 @@ import {
   deleteInfringement,
   fetchInfringements,
   fetchPendingPenalties,
+  getSessionConfig,
   updateInfringement as updateInfringementApi,
   listSessions,
   getConfig,
   updateConfig,
+  updateSessionConfig,
 } from './api';
 import { wsManager } from './websocket';
 import type {
@@ -61,6 +63,7 @@ export default function App() {
   const [showExpirySettings, setShowExpirySettings] = useState<boolean>(false);
   const [isQualifyingMode, setIsQualifyingMode] = useState<boolean>(false);
   const [isSavingConfig, setIsSavingConfig] = useState<boolean>(false);
+  const [isSavingSessionConfig, setIsSavingSessionConfig] = useState<boolean>(false);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
   const [passwordInput, setPasswordInput] = useState<string>('');
@@ -68,7 +71,13 @@ export default function App() {
   const [paginationLimit, setPaginationLimit] = useState<number>(300);
   const [paginationTotal, setPaginationTotal] = useState<number>(0);
   const [paginationTotalPages, setPaginationTotalPages] = useState<number>(1);
+  const [serverTimeOffsetMs, setServerTimeOffsetMs] = useState<number>(0);
   const popupWindowRef = useRef<Window | null>(null);
+  const activeSessionNameRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeSessionNameRef.current = activeSessionName;
+  }, [activeSessionName]);
 
   // Fetch config from backend on mount
   useEffect(() => {
@@ -100,6 +109,16 @@ export default function App() {
     }
   }, []);
 
+  const loadSessionConfig = useCallback(async (sessionName: string) => {
+    try {
+      const config = await getSessionConfig(sessionName);
+      setIsQualifyingMode(config.qualifying_mode);
+    } catch (error) {
+      console.error('Failed to fetch session config', error);
+      setIsQualifyingMode(false);
+    }
+  }, []);
+
   const loadData = useCallback(
     async (withSpinner = true) => {
       if (withSpinner) {
@@ -114,6 +133,7 @@ export default function App() {
           setHasActiveSession(false);
           setInfringements([]);
           setPendingPenalties([]);
+          setIsQualifyingMode(false);
           if (withSpinner) {
             setLoadError('No active session. Please create or load a session to view infringements.');
           }
@@ -125,6 +145,9 @@ export default function App() {
           fetchInfringements(paginationPage, paginationLimit),
           fetchPendingPenalties(),
         ]);
+        if (infringementData.server_time_utc) {
+          setServerTimeOffsetMs(new Date(infringementData.server_time_utc).getTime() - Date.now());
+        }
         setInfringements(infringementData.items);
         setPaginationTotal(infringementData.total);
         setPaginationTotalPages(infringementData.total_pages);
@@ -201,6 +224,18 @@ export default function App() {
         // Use loadData from closure - don't include in dependencies to prevent reconnections
         void loadData(false);
       }
+      if (message?.type === 'config_updated') {
+        const nextExpiry = Number(message.data?.warning_expiry_minutes);
+        if (Number.isFinite(nextExpiry) && nextExpiry >= 1) {
+          setWarningExpiryMinutes(nextExpiry);
+        }
+      }
+      if (message?.type === 'session_config_updated') {
+        const sessionName = message.session?.name;
+        if (sessionName && sessionName === activeSessionNameRef.current) {
+          setIsQualifyingMode(Boolean(message.data?.qualifying_mode));
+        }
+      }
     });
 
     return () => {
@@ -209,6 +244,14 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array - connection should persist regardless of loadData changes
+
+  useEffect(() => {
+    if (currentView === 'penalty-logging' && activeSessionName) {
+      void loadSessionConfig(activeSessionName);
+    } else if (currentView === 'sessions') {
+      setIsQualifyingMode(false);
+    }
+  }, [activeSessionName, currentView, loadSessionConfig]);
 
   // Listen for messages from popup windows (for edit/delete actions)
   useEffect(() => {
@@ -371,6 +414,7 @@ export default function App() {
   const handleBackToSessions = () => {
     setCurrentView('sessions');
     setActiveSessionName(null);
+    setIsQualifyingMode(false);
   };
 
   const handlePageChange = (newPage: number) => {
@@ -407,8 +451,27 @@ export default function App() {
     }
   };
 
-  const handleToggleQualifyingMode = () => {
-    setIsQualifyingMode((prev) => !prev);
+  const handleToggleQualifyingMode = async () => {
+    if (!activeSessionName) {
+      return;
+    }
+
+    const sessionName = activeSessionName;
+    const nextQualifyingMode = !isQualifyingMode;
+    setIsQualifyingMode(nextQualifyingMode);
+
+    try {
+      setIsSavingSessionConfig(true);
+      await updateSessionConfig(sessionName, { qualifying_mode: nextQualifyingMode });
+    } catch (error: any) {
+      console.error('Failed to update session config', error);
+      setIsQualifyingMode(!nextQualifyingMode);
+      toast.error('Error Updating Session Config', {
+        description: error?.message || 'Failed to update qualifying mode',
+      });
+    } finally {
+      setIsSavingSessionConfig(false);
+    }
   };
 
   const handlePasswordSubmit = () => {
@@ -468,6 +531,7 @@ export default function App() {
                       size="sm"
                       variant={isQualifyingMode ? 'default' : 'outline'}
                       onClick={handleToggleQualifyingMode}
+                      disabled={isSavingSessionConfig}
                       className="h-8 text-xs px-3"
                       aria-pressed={isQualifyingMode}
                     >
@@ -559,6 +623,7 @@ export default function App() {
             onEdit={handleEditInfringement}
             onDelete={handleDeleteInfringement}
             warningExpiryMinutes={warningExpiryMinutes}
+            serverTimeOffsetMs={serverTimeOffsetMs}
             onPopupOpened={(window) => {
               popupWindowRef.current = window;
             }}
