@@ -1,0 +1,451 @@
+[
+  {
+    "name": "Create session through UI",
+    "status": "PASS",
+    "evidence": "Browser Audit 1791289120697"
+  },
+  {
+    "name": "Dashboard renders and WebSocket connects",
+    "status": "PASS",
+    "evidence": "RACELITH\nPenalty Tracking System\nLive\n\nActive Session\n\nBrowser Audit 1791289120697\n\nExpiry\nQualifying: OFF\n← Back to Sessions\nLog Infringement\nKart Number\nTurn Number\nObserver\nInfringement\nPenalty Description\nLog Infringement\nPending Penalties\n\nPenalties requiring action\n\nTime\tKart #\tAction\tInfringement\tPenalty\nNo pending penalties\nRecent Infringements\nAll Entries\nEntries:\n300\nPage\n1\nof\n1\nSearch by Kart Number\nTime\tKart #\tTurn\tInfringement\tPenalty\tObserver\tStatus\tActions\nNo infringements logged yet\nShowing 0 to 0 of 0 entries\nSession created successfully\nSession \"Browser Audit 1791289120697\" has been created and activated."
+  },
+  {
+    "name": "Multi-kart form writes both records",
+    "status": "PASS",
+    "evidence": [
+      {
+        "id": 2,
+        "session_name": "Browser Audit 1791289120697",
+        "kart_number": 72,
+        "turn_number": null,
+        "description": "Contact",
+        "observer": "Browser Audit",
+        "warning_count": 1,
+        "penalty_due": "Yes",
+        "penalty_description": "10 Sec",
+        "penalty_origin": "manual",
+        "review_required": false,
+        "timestamp": "2026-10-06T12:18:41.704000Z",
+        "penalty_taken": null,
+        "warning_flag": false
+      },
+      {
+        "id": 1,
+        "session_name": "Browser Audit 1791289120697",
+        "kart_number": 71,
+        "turn_number": null,
+        "description": "Contact",
+        "observer": "Browser Audit",
+        "warning_count": 1,
+        "penalty_due": "Yes",
+        "penalty_description": "10 Sec",
+        "penalty_origin": "manual",
+        "review_required": false,
+        "timestamp": "2026-10-06T12:18:41.704000Z",
+        "penalty_taken": null,
+        "warning_flag": false
+      }
+    ]
+  },
+  {
+    "name": "Observer input does not overwrite turn number",
+    "status": "PASS",
+    "evidence": [
+      {
+        "kart": 72,
+        "turn": null,
+        "observer": "Browser Audit"
+      },
+      {
+        "kart": 71,
+        "turn": null,
+        "observer": "Browser Audit"
+      }
+    ]
+  },
+  {
+    "name": "Second browser updates live",
+    "status": "PASS",
+    "evidence": "RACELITH\nPenalty Tracking System\nLive\n\nActive Session\n\nBrowser Audit 1791289120697\n\nExpiry\nQualifying: OFF\n← Back to Sessions\nLog Infringement\nKart Number\nTurn Number\nObserver\nInfringement\nPenalty Description\nLog Infringement\nPending Penalties\n\nPenalties requiring action\n\nTime\tKart #\tAction\tInfringement\tPenalty\n16:18:43\t73\t\nApply Penalty\n\tWhite Line Infringement\t5 sec Stop & Go\n16:18:41\t71\t\nApply Penalty\n\tContact\t10 Sec\n16:18:41\t72\t\nApply Penalty\n\tContact\t10 Sec\nRecent Infringements\nAll Entries\nEntries:\n300\nPage\n1\nof\n1\nSearch by Kart Number\nTime\tKart #\tTurn\tInfringement\tPenalty\tObserver\tStatus\tActions\n16:18:43\t73\t—\tWhite Line Infringement\t5 sec Stop & Go\tBrowser Audit\t\nPending\n\t\n\n16:18:43\t73\t—\tWhite Line Infringement\tWarning\tBrowser Audit\t\nWarning\n\t\n\n16:18:42\t73\t—\tWhite Line Infringement\tWarning\tBrowser Audit\t\nWarning\n\t\n\n16:18:41\t72\t—\tContact\t10 Sec\tBrowser Audit\t\nPending\n\t\n\n16:18:41\t71\t—\tContact\t10 Sec\tBrowser Audit\t\nPending\n\t\nShowing 1 to 5 of 5 entries"
+  },
+  {
+    "name": "UI warnings create pending penalty",
+    "status": "PASS",
+    "evidence": [
+      {
+        "session_name": "Browser Audit 1791289120697",
+        "id": 1,
+        "kart_number": 71,
+        "description": "Contact",
+        "penalty_description": "10 Sec",
+        "timestamp": "2026-10-06T12:18:41.704000Z",
+        "observer": "Browser Audit"
+      },
+      {
+        "session_name": "Browser Audit 1791289120697",
+        "id": 2,
+        "kart_number": 72,
+        "description": "Contact",
+        "penalty_description": "10 Sec",
+        "timestamp": "2026-10-06T12:18:41.704000Z",
+        "observer": "Browser Audit"
+      },
+      {
+        "session_name": "Browser Audit 1791289120697",
+        "id": 5,
+        "kart_number": 73,
+        "description": "White Line Infringement",
+        "penalty_description": "5 sec Stop & Go",
+        "timestamp": "2026-10-06T12:18:43.917000Z",
+        "observer": "Browser Audit"
+      }
+    ]
+  },
+  {
+    "name": "UI applies individual penalty",
+    "status": "PASS",
+    "evidence": [
+      {
+        "session_name": "Browser Audit 1791289120697",
+        "id": 1,
+        "kart_number": 71,
+        "description": "Contact",
+        "penalty_description": "10 Sec",
+        "timestamp": "2026-10-06T12:18:41.704000Z",
+        "observer": "Browser Audit"
+      },
+      {
+        "session_name": "Browser Audit 1791289120697",
+        "id": 2,
+        "kart_number": 72,
+        "description": "Contact",
+        "penalty_description": "10 Sec",
+        "timestamp": "2026-10-06T12:18:41.704000Z",
+        "observer": "Browser Audit"
+      }
+    ]
+  },
+  {
+    "name": "Qualifying form assigns fastest lap invalidation",
+    "status": "PASS",
+    "evidence": {
+      "id": 6,
+      "session_name": "Browser Audit 1791289120697",
+      "kart_number": 74,
+      "turn_number": null,
+      "description": "White Line Infringement",
+      "observer": "Browser Audit",
+      "warning_count": 1,
+      "penalty_due": "Yes",
+      "penalty_description": "Fastest Lap Invalidation",
+      "penalty_origin": "manual",
+      "review_required": false,
+      "timestamp": "2026-10-06T12:18:45.168000Z",
+      "penalty_taken": null,
+      "warning_flag": false
+    }
+  },
+  {
+    "name": "Expanded log renders records",
+    "status": "PASS",
+    "evidence": "Recent Infringements\nAll Entries\nWarning Flag\nPenalties\nTIME\tKART #\tTURN\tINFRINGEMENT\tPENALTY\tOBSERVER\tSTATUS\tACTIONS\n16:18:45\t74\t—\tWhite Line Infringement\tFastest Lap Invalidation\tBrowser Audit\t\nPending\n\t\n\n16:18:43\t73\t—\tWhite Line Infringement\t5 sec Stop & Go\tBrowser Audit\t\nApplied\n\t\n\n16:18:43\t73\t—\tWhite Line Infringement\tWarning\tBrowser Audit\t\nWarning\n\t\n\n16:18:42\t73\t—\tWhite Line Infringement\tWarning\tBrowser Audit\t\nWarning\n\t\n\n16:18:41\t72\t—\tContact\t10 Sec\tBrowser Audit\t\nPending\n\t\n\n16:18:41\t71\t—\tContact\t10 Sec\tBrowser Audit\t\nPending\n\t"
+  },
+  {
+    "name": "Cross-origin popup messages cannot delete records",
+    "status": "PASS",
+    "evidence": {
+      "attackerOrigin": "http://localhost:3000",
+      "victimId": 2,
+      "exists": true
+    }
+  },
+  {
+    "name": "Failed submission retains form draft",
+    "status": "PASS",
+    "evidence": {
+      "kart": "75",
+      "errorVisible": true
+    }
+  },
+  {
+    "name": "Retry successfully saves retained draft",
+    "status": "PASS"
+  },
+  {
+    "name": "Partial submission preserves only unsuccessful kart",
+    "status": "PASS"
+  },
+  {
+    "name": "Partial retry does not duplicate saved kart",
+    "status": "PASS"
+  },
+  {
+    "name": "Turn and observer form fields independent",
+    "status": "PASS"
+  },
+  {
+    "name": "Independent observer and turn stored correctly",
+    "status": "PASS",
+    "evidence": {
+      "id": 10,
+      "session_name": "Browser Audit 1791289120697",
+      "kart_number": 78,
+      "turn_number": "Turn 9",
+      "description": "Contact",
+      "observer": "Independent Observer",
+      "warning_count": 1,
+      "penalty_due": "No",
+      "penalty_description": null,
+      "penalty_origin": "manual",
+      "review_required": false,
+      "timestamp": "2026-10-06T12:18:49.423000Z",
+      "penalty_taken": null,
+      "warning_flag": false
+    }
+  },
+  {
+    "name": "Kart search finds records beyond current page",
+    "status": "PASS",
+    "evidence": {
+      "kart": 71,
+      "existsInDatabase": true,
+      "visible": "16:18:41\t71\t—\tContact\t10 Sec\tBrowser Audit\t\nPending\n\t"
+    }
+  },
+  {
+    "name": "Live update respects selected page and page size",
+    "status": "PASS",
+    "evidence": {
+      "before": "16:18:49\t2009\t—\tContact\tWarning\tPagination audit\t\nWarning\n\t",
+      "after": "16:18:49\t2011\t—\tContact\tWarning\tPagination audit\t\nWarning\n\t",
+      "footer": "Showing 101 to 121 of 121 entries",
+      "page": "Page\n2\nof\n2",
+      "rowCount": 21
+    }
+  },
+  {
+    "name": "UI export fallback downloads workbook",
+    "status": "PASS",
+    "evidence": {
+      "filename": "Browser Audit 1791289120697_2026-10-06.xlsx",
+      "bytes": 24371
+    }
+  },
+  {
+    "name": "UI imports CSV and navigates to imported session",
+    "status": "PASS",
+    "evidence": {
+      "name": "Browser Imported 1791289133692",
+      "sessions": [
+        {
+          "name": "Browser Audit 1791289120697",
+          "status": "closed",
+          "started_at": "2026-10-06T12:18:41.146727Z"
+        },
+        {
+          "name": "Fixed API a39a4667-Race Other",
+          "status": "closed",
+          "started_at": "2026-10-06T12:18:08.836927Z"
+        },
+        {
+          "name": "Fixed API a39a4667-Race csv",
+          "status": "closed",
+          "started_at": "2026-10-06T12:18:07.572373Z"
+        },
+        {
+          "name": "Browser Imported 1791289133692",
+          "status": "active",
+          "started_at": "2026-10-06T12:18:07.572373Z"
+        },
+        {
+          "name": "Fixed API a39a4667-Race",
+          "status": "closed",
+          "started_at": "2026-10-06T12:18:07.572373Z"
+        },
+        {
+          "name": "Fixed API a39a4667-Race excel",
+          "status": "closed",
+          "started_at": "2026-10-06T12:18:07.572373Z"
+        },
+        {
+          "name": "Browser Audit 1791288704075",
+          "status": "closed",
+          "started_at": "2026-10-06T12:11:44.540098Z"
+        },
+        {
+          "name": "Legacy 3a6dd0c8",
+          "status": "closed",
+          "started_at": "2026-10-06T12:11:05.400689Z"
+        },
+        {
+          "name": "Fault Test bc0ddc9a",
+          "status": "closed",
+          "started_at": "2026-10-06T12:11:05.310054Z"
+        },
+        {
+          "name": "Focused 1791288624467 Other",
+          "status": "closed",
+          "started_at": "2026-10-06T12:10:28.397089Z"
+        },
+        {
+          "name": "Focused 1791288624467",
+          "status": "closed",
+          "started_at": "2026-10-06T12:10:24.548631Z"
+        },
+        {
+          "name": "Browser Audit 1791288571277",
+          "status": "closed",
+          "started_at": "2026-10-06T12:09:31.721746Z"
+        },
+        {
+          "name": "Fixed API 0530ae0c-Race Other",
+          "status": "closed",
+          "started_at": "2026-10-06T12:05:49.474823Z"
+        },
+        {
+          "name": "Fixed API 0530ae0c-Race csv",
+          "status": "closed",
+          "started_at": "2026-10-06T12:05:48.334686Z"
+        },
+        {
+          "name": "Fixed API 0530ae0c-Race",
+          "status": "closed",
+          "started_at": "2026-10-06T12:05:48.334686Z"
+        },
+        {
+          "name": "Fixed API 0530ae0c-Race excel",
+          "status": "closed",
+          "started_at": "2026-10-06T12:05:48.334686Z"
+        },
+        {
+          "name": "Large Popup 1791288219686",
+          "status": "closed",
+          "started_at": "2026-10-06T12:03:39.767980Z"
+        },
+        {
+          "name": "Focused 1791288195193 Other",
+          "status": "closed",
+          "started_at": "2026-10-06T12:03:19.207039Z"
+        },
+        {
+          "name": "Focused 1791288195193",
+          "status": "closed",
+          "started_at": "2026-10-06T12:03:15.264851Z"
+        },
+        {
+          "name": "Focused 1791288125346 Other",
+          "status": "closed",
+          "started_at": "2026-10-06T12:02:09.427996Z"
+        },
+        {
+          "name": "Focused 1791288125346",
+          "status": "closed",
+          "started_at": "2026-10-06T12:02:05.441418Z"
+        },
+        {
+          "name": "Legacy f21e6544",
+          "status": "closed",
+          "started_at": "2026-10-06T12:01:43.526906Z"
+        },
+        {
+          "name": "Fault Test 44eb048d",
+          "status": "closed",
+          "started_at": "2026-10-06T12:01:43.419775Z"
+        },
+        {
+          "name": "Fault Test 326b2d03",
+          "status": "closed",
+          "started_at": "2026-10-06T12:00:48.851279Z"
+        },
+        {
+          "name": "Fixed API 13260a82-Race Other",
+          "status": "closed",
+          "started_at": "2026-10-06T11:59:57.855033Z"
+        },
+        {
+          "name": "Fixed API 13260a82-Race csv",
+          "status": "closed",
+          "started_at": "2026-10-06T11:59:56.878825Z"
+        },
+        {
+          "name": "Fixed API 13260a82-Race",
+          "status": "closed",
+          "started_at": "2026-10-06T11:59:56.878825Z"
+        },
+        {
+          "name": "Fixed API 13260a82-Race excel",
+          "status": "closed",
+          "started_at": "2026-10-06T11:59:56.878825Z"
+        },
+        {
+          "name": "Browser Audit 1791287892359",
+          "status": "closed",
+          "started_at": "2026-10-06T11:58:12.794600Z"
+        },
+        {
+          "name": "Browser Audit 1791287872879",
+          "status": "closed",
+          "started_at": "2026-10-06T11:57:53.314441Z"
+        },
+        {
+          "name": "Fixed API a5cad129-Race Other",
+          "status": "closed",
+          "started_at": "2026-10-06T11:57:17.759828Z"
+        },
+        {
+          "name": "Fixed API a5cad129-Race excel",
+          "status": "closed",
+          "started_at": "2026-10-06T11:57:17.113365Z"
+        },
+        {
+          "name": "Fixed API a5cad129-Race",
+          "status": "closed",
+          "started_at": "2026-10-06T11:57:17.113365Z"
+        },
+        {
+          "name": "Fixed API a5cad129-Race csv",
+          "status": "closed",
+          "started_at": "2026-10-06T11:57:17.113365Z"
+        },
+        {
+          "name": "Fixed API 7e9230df-Race",
+          "status": "closed",
+          "started_at": "2026-10-06T11:56:32.951822Z"
+        }
+      ]
+    }
+  },
+  {
+    "name": "UI loads existing session",
+    "status": "PASS",
+    "evidence": "Browser Audit 1791289120697"
+  },
+  {
+    "name": "UI deletes disposable session",
+    "status": "PASS",
+    "evidence": "Browser Imported 1791289133692"
+  },
+  {
+    "name": "Mobile session controls reachable",
+    "status": "PASS",
+    "evidence": {
+      "x": 41,
+      "y": 236,
+      "width": 126.546875,
+      "height": 32
+    }
+  },
+  {
+    "name": "Mobile page has no document horizontal overflow",
+    "status": "PASS",
+    "evidence": {
+      "width": 390,
+      "scrollWidth": 390
+    }
+  },
+  {
+    "name": "No uncaught browser exceptions",
+    "status": "PASS",
+    "evidence": []
+  }
+]

@@ -1,0 +1,112 @@
+RACELITH — NON-AUTHENTICATION FIXES AND REPEATED E2E VERIFICATION
+Date: 6 October 2026
+
+RESULT
+132/132 behavioral assertions passed across actual Chrome, FastAPI,
+and disposable PostgreSQL databases. Frontend type checking and production build
+passed. npm audit and pip-audit reported zero known advisories in the tested,
+upgraded dependency graphs. Python dependency consistency passed.
+
+FIXES
+Warning and penalty integrity:
+* Each create/edit/delete replays the affected kart's incidents by UTC event time
+  and ID, separately for white-line and yellow-zone cycles. It excludes warnings
+  outside the configured expiry window and correctly handles tied/backdated times.
+* Manual penalties remain explicit choices. Metadata edits preserve them. Served
+  penalties stay served; changes invalidating an automatic served penalty mark it
+  for review instead of requesting a second physical penalty.
+* Race DB connections close after every request so closed sessions do not retain
+  idle connections. The control pool bounds simultaneous requests.
+* Session-local transaction locks serialize writes. A 24-request burst above the
+  connection pool size completed with exactly eight third-warning penalties.
+* Incident writes, recalculations and per-incident audit events share a transaction.
+  Deletion hides the original record while retaining its history and export data.
+
+Session and request isolation:
+* Every incident request uses a connection bound to the selected physical race DB.
+  Lifecycle locks prevent switch/delete during a request. Frontend requests carry
+  their expected session; stale drafts, edits, deletes and penalty actions fail 409.
+* New sessions use UUID database identifiers. Lifecycle operations resolve exact
+  session metadata before deleting/loading; alias names cannot drop another DB.
+* Imports validate every row before staging a database, activate only after all
+  inserts succeed, and remove failed staging databases. Existing active data survives.
+* Export reads an independent consistent snapshot without switching other requests.
+* Existing databases receive additive schema changes on load. Ambiguous historical
+  served penalties are preserved conservatively rather than reclassified destructively.
+
+Forms and live views:
+* Observer and turn are independent in the main form, edit dialog and expanded log.
+* Drafts/dialogs clear only after success. Partial multi-kart submissions retain only
+  unsuccessful karts. Stable request IDs make retries after lost responses idempotent.
+* Live refreshes use the latest selected page/page size/search and ignore obsolete
+  responses. Backend search filters before pagination; out-of-range pages clamp.
+* Expanded logs fetch every page, including beyond 1,000 records, and reconnect/refetch.
+* Popup messages require the expected origin and source. Deletion is performed once.
+* Added missing generated CSS utilities; controls wrap and tables scroll inside cards.
+  Actual mobile controls and both session/dashboard layouts were checked visually.
+
+Files and operations:
+* Excel user text is explicitly literal; CSV formula-leading text is reversibly
+  escaped. Blank descriptions, served states and deleted history round-trip correctly.
+* Invalid import rows identify the rejected row rather than silently disappearing.
+  Imports are bounded to 10 MB, 10,000 incidents and bounded expanded workbook data.
+  Unsupported legacy .xls is rejected explicitly.
+* Session naming agrees with the supported display-name format, including hyphens.
+  Kart numbers, paging, expiry settings, text lengths and future event times validate.
+* Production Compose explicitly resets inherited DB ports and replaces backend mounts.
+  Rendering the merged configuration confirms that PostgreSQL publishes no host port.
+* /api/live reports process availability; /api/health and /api/ready query the control
+  and active race DB. Actual outage produced 503, recovery returned 200, and restarting
+  the API restored the active session and all 1,005 baseline records.
+* Database/internal failures return generic messages. Detailed errors remain in logs.
+* Backend dependencies and frontend direct dependencies are pinned, with full lockfiles.
+  Python 3.12/psycopg2 compatibility and React 18 type definitions were verified.
+
+EVIDENCE
+fixed-results.json                         Combined final assertions (132).
+regression-api-results.json                API/rules/concurrency/interchange checks.
+fixed-browser/browser-results.json         Full sessions/logging/pagination/mobile E2E.
+focused-browser-results.json               Edit failures, popup actions, lost responses.
+regression-fault-results.json              Real DB failure, migration and staging rollback.
+large-popup-results.json                   1,005 actual DB entries and deep-page editing.
+regression-ops-results.json                Actual outage, recovery and API restart.
+reconnect-results.json                     Both views refetch/resume after socket reconnect.
+resource-results.json                      No idle race DB connections remain after requests.
+fixed-browser/*.png                        Mobile and pagination screenshots.
+fixed-export.xlsx / fixed-export.csv       Safe lossless spreadsheet fixtures.
+npm-audit-after.json / pip-audit-after.json Upgraded dependency advisory snapshots.
+typecheck.log / build-after.log            Successful whole-source checks and build.
+
+SCOPE AND LIMITS
+Authentication, operator authorization, account-derived attribution, the existing
+expiry password flow and HTTP/WebSocket access policy were deliberately deferred
+as requested. The app must not be described as fully secure or production-ready.
+
+Tests used Python 3.12 and PostgreSQL 17 on a local disposable instance. Production
+Compose declares PostgreSQL 15; Docker daemon was unavailable, so actual container
+build/runtime, deployed TLS/proxy behavior, native Save As picker, production data
+migration/backups and long-duration load/soak testing remain unverified. File export
+E2E exercised the real anchor-download fallback with the native picker disabled.
+Verification did not deploy changes or touch an external event database.
+
+The repository already tracks generated node_modules/build/bytecode files. Dependency
+installations updated local generated files; source and lockfiles are authoritative.
+Fresh installs should use npm ci and backend/requirements.lock with Python 3.12.
+Original pre-fix evidence remains in AUDIT_REPORT.txt and the original probe JSONs.
+
+REPRODUCTION
+Use a fresh isolated PostgreSQL cluster on 127.0.0.1:55439, user audit_user, control
+DB audit_fixed. Start the backend on 8000 with DATABASE_URL targeting that database
+and SESSION_EXPORT_DIR=/tmp/racelith-e2e/exports; start frontend on 127.0.0.1:3000.
+Use Python 3.12 and requirements.lock. Browser scripts use Playwright plus system
+Chrome; PLAYWRIGHT_PATH can select an existing installation.
+
+Set RACELITH_AUDIT_DISPOSABLE=1. Run regression_api.py, regression_browser.cjs,
+regression_focused_browser.cjs, regression_large_popup.cjs and regression_faults.py
+sequentially because there is one active session. regression_ops.py expects actual
+outage/recovery/restart actions between baseline/outage/recovery/restart modes.
+regression_reconnect.cjs uses readiness/restart marker files under /tmp/racelith-e2e.
+Fault tests alter the disposable template database; never use an event/shared cluster.
+
+Test services were stopped after verification. Disposable test databases and the
+Python 3.12 test environment remain under /tmp/racelith-e2e for reproduction.

@@ -1,0 +1,38 @@
+const {chromium}=require(process.env.PLAYWRIGHT_PATH||'playwright');const fs=require('fs');const path=require('path');
+if(process.env.RACELITH_AUDIT_DISPOSABLE!=='1')throw Error('Disposable only');
+(async()=>{const browser=await chromium.launch({headless:true,channel:'chrome'});const ctx=await browser.newContext({viewport:{width:1440,height:1000}});const page=await ctx.newPage();const results=[];const errors=[];
+ctx.on('page',p=>p.on('pageerror',e=>errors.push(e.message)));page.on('pageerror',e=>errors.push(e.message));
+const check=(name,ok,e)=>{results.push({name,status:ok?'PASS':'FAIL',evidence:e});console.log(name,ok?'PASS':'FAIL')};
+const api=async(method,url,data)=>{const r=await ctx.request.fetch('http://127.0.0.1:8000'+url,{method,data});return {status:r.status(),body:await r.json()}};
+const name='Focused '+Date.now();await api('POST','/session/start?name='+encodeURIComponent(name));const original=(await api('POST','/infringements/',{kart_number:901,description:'White Line Infringement',observer:'Original',penalty_description:'10 Sec'})).body;
+await page.goto('http://127.0.0.1:3000');await page.waitForTimeout(700);
+await page.getByRole('button',{name:/Edit infringement/}).first().click();await page.locator('#edit-observer').fill('Observer Edited');await page.locator('#edit-turn').fill('T3');
+check('Edit observer and turn fields independent',await page.locator('#edit-observer').inputValue()==='Observer Edited');
+await page.route('**/infringements/'+original.id,r=>r.request().method()==='PUT'?r.fulfill({status:503,contentType:'application/json',body:'{"detail":"Edit save test failure"}'}):r.continue());
+await page.getByRole('button',{name:'Save Changes',exact:true}).click();await page.waitForTimeout(200);
+check('Failed edit retains open dialog and draft',await page.getByRole('dialog').isVisible() && await page.locator('#edit-observer').inputValue()==='Observer Edited');
+await page.unroute('**/infringements/'+original.id);await page.getByRole('button',{name:'Save Changes',exact:true}).click();await page.waitForTimeout(350);
+const saved=(await api('GET','/infringements/?kart_number=901')).body.items[0];check('Successful edit closes dialog and preserves selected penalty',await page.getByRole('dialog').count()===0 && saved.penalty_description==='10 Sec' && saved.turn_number==='T3' && saved.observer==='Observer Edited',saved);
+const popPromise=ctx.waitForEvent('page');await page.getByRole('button',{name:'Open in new tab'}).click();const pop=await popPromise;await pop.waitForTimeout(400);
+await api('POST','/infringements/',{kart_number:902,description:'Contact',penalty_description:'Warning'});await pop.waitForFunction(()=>document.body.innerText.includes('902'));
+check('Expanded log receives live API changes',await pop.locator('#tableBody tr').count()===2);
+await pop.locator('button[title="Edit"]').last().click();await pop.locator('#editObserver').fill('Popup Observer');await pop.locator('#editTurn').fill('PT4');
+check('Popup edit fields independent',await pop.locator('#editObserver').inputValue()==='Popup Observer');
+await pop.getByRole('button',{name:'Save',exact:true}).click();await pop.waitForTimeout(300);
+const popupEdit=(await api('GET','/infringements/?kart_number=901')).body.items[0];check('Popup edit saves correctly',popupEdit.observer==='Popup Observer' && popupEdit.turn_number==='PT4',popupEdit);
+pop.once('dialog',d=>d.accept());await pop.locator('button[title="Delete"]').first().click();await pop.waitForTimeout(350);
+check('Popup deletion happens once and retains audit',(await api('GET','/infringements/?kart_number=902')).body.total===0 && (await api('GET','/history/902')).body.some(x=>x.action==='deleted'));
+await pop.close();
+await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(__dirname,'fixed-browser','mobile-dashboard.png'),fullPage:true});
+check('Mobile dashboard has no document overflow',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth})));
+// Simulate lost HTTP response after server commit. The form must retry the same request key.
+let lost=true;await page.route('**/infringements/',async r=>{if(r.request().method()==='POST' && lost){lost=false;await r.fetch();await r.abort('failed')}else await r.continue()});
+await page.locator('#kartNumber').fill('903');await page.locator('#infringement').fill('Contact');await page.keyboard.press('Escape');await page.getByRole('button',{name:'Log Infringement',exact:true}).click();await page.waitForTimeout(300);
+check('Lost response retains committed draft',await page.locator('#kartNumber').inputValue()==='903' && (await api('GET','/infringements/?kart_number=903')).body.total===1);
+await page.getByRole('button',{name:'Log Infringement',exact:true}).click();await page.waitForTimeout(300);check('Lost-response retry does not duplicate event',(await api('GET','/infringements/?kart_number=903')).body.total===1 && await page.locator('#kartNumber').inputValue()==='');await page.unroute('**/infringements/');
+// Open a draft, switch the global session from another client, then submit.
+await page.locator('#kartNumber').fill('904');await page.locator('#infringement').fill('Contact');await page.keyboard.press('Escape');await api('POST','/session/start?name='+encodeURIComponent(name+' Other'));await page.waitForTimeout(400);
+await page.getByRole('button',{name:'Log Infringement',exact:true}).click();await page.waitForTimeout(300);
+check('Stale draft rejected without writing to new session',await page.locator('#kartNumber').inputValue()==='904' && (await api('GET','/infringements/?kart_number=904')).body.total===0);
+check('No uncaught exceptions in focused browser flows',errors.length===0,errors);fs.writeFileSync(path.join(__dirname,'focused-browser-results.json'),JSON.stringify(results,null,2));await browser.close();if(results.some(x=>x.status==='FAIL'))process.exit(1);
+})().catch(e=>{console.error(e);process.exit(1)});

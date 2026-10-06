@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship, declarative_base
 from datetime import datetime, timezone
 
@@ -9,6 +9,7 @@ class SessionInfo(Base):
     __tablename__ = "sessions"
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
+    database_name = Column(String, unique=True, nullable=True)
     started_at = Column(DateTime(timezone=True))
     status = Column(String)  # "active" or "closed"
 
@@ -33,10 +34,16 @@ class Infringement(Base):
     penalty_description = Column(String, default="Warning")
     penalty_taken = Column(DateTime(timezone=True), nullable=True)
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    requested_penalty = Column(String, nullable=True)
+    penalty_origin = Column(String, nullable=True)
+    review_required = Column(Boolean, default=False, nullable=False)
+    request_id = Column(String, unique=True, nullable=True)
+    request_fingerprint = Column(String, nullable=True)
     history = relationship(
         "InfringementHistory",
         back_populates="infringement",
-        cascade="all, delete-orphan"
+        cascade="save-update, merge"
     )
 
 class InfringementHistory(Base):
@@ -44,6 +51,7 @@ class InfringementHistory(Base):
     id = Column(Integer, primary_key=True, index=True)
     session_name = Column(String, index=True)
     infringement_id = Column(Integer, ForeignKey("infringements.id", ondelete="CASCADE"))
+    kart_number = Column(Integer, index=True)
     action = Column(String)
     performed_by = Column(String)
     observer = Column(String, nullable=True)

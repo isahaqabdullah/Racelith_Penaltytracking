@@ -9,7 +9,7 @@ router = APIRouter()
 def list_infringement_log(db: Session = Depends(get_db)):
     """Returns all infringement logs for the current session DB."""
 
-    logs = db.query(Infringement).order_by(Infringement.timestamp.desc()).all()
+    logs = db.query(Infringement).filter(Infringement.deleted_at.is_(None)).order_by(Infringement.timestamp.desc()).all()
 
     return [
         {

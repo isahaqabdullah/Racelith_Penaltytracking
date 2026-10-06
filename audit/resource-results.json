@@ -1,0 +1,9 @@
+[
+  {
+    "name": "Race database connections do not remain idle between requests",
+    "status": "PASS",
+    "evidence": {
+      "idle_race_connections": 0
+    }
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "name": "WebSocket rejects unauthenticated untrusted origin",
+    "status": "FAIL",
+    "evidence": {
+      "type": "connected",
+      "message": "WebSocket connection established"
+    }
+  },
+  {
+    "name": "Reject SQL syntax in session names",
+    "status": "PASS",
+    "evidence": {
+      "status": 400,
+      "response": {
+        "detail": "Session name contains invalid characters: ';'. Allowed characters: letters, numbers, spaces, underscores, and hyphens."
+      }
+    }
+  }
+]

@@ -1,0 +1,177 @@
+[
+  {
+    "name": "Expired warnings excluded",
+    "status": "PASS",
+    "evidence": {
+      "id": 2,
+      "kart_number": 81,
+      "turn_number": null,
+      "description": "White Line Infringement",
+      "observer": null,
+      "warning_count": 1,
+      "penalty_due": "No",
+      "penalty_description": "Warning",
+      "penalty_taken": null,
+      "timestamp": "2026-10-06T16:46:57.452916+05:30"
+    }
+  },
+  {
+    "name": "White and yellow warning cycles independent",
+    "status": "PASS",
+    "evidence": {
+      "id": 4,
+      "kart_number": 82,
+      "turn_number": null,
+      "description": "Yellow Zone Infringement",
+      "observer": null,
+      "warning_count": 1,
+      "penalty_due": "No",
+      "penalty_description": "Warning",
+      "penalty_taken": null,
+      "timestamp": "2026-10-06T16:46:57.460251+05:30"
+    }
+  },
+  {
+    "name": "Equal timestamps still reset warning cycle",
+    "status": "FAIL",
+    "evidence": [
+      [
+        1,
+        "No"
+      ],
+      [
+        2,
+        "No"
+      ],
+      [
+        3,
+        "Yes"
+      ],
+      [
+        3,
+        "Yes"
+      ]
+    ]
+  },
+  {
+    "name": "Backdated warnings exclude later events",
+    "status": "FAIL",
+    "evidence": {
+      "later": {
+        "id": 10,
+        "kart_number": 84,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": null,
+        "warning_count": 2,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T16:46:57.481779+05:30"
+      },
+      "backdated": {
+        "id": 11,
+        "kart_number": 84,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": null,
+        "warning_count": 3,
+        "penalty_due": "Yes",
+        "penalty_description": "5 sec Stop & Go",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T15:47:57.477025+05:30"
+      }
+    }
+  },
+  {
+    "name": "Concurrent warnings follow one serialized cycle",
+    "status": "FAIL",
+    "evidence": [
+      [
+        15,
+        1,
+        "No"
+      ],
+      [
+        14,
+        3,
+        "Yes"
+      ],
+      [
+        18,
+        3,
+        "Yes"
+      ],
+      [
+        17,
+        3,
+        "Yes"
+      ],
+      [
+        16,
+        1,
+        "No"
+      ]
+    ]
+  },
+  {
+    "name": "Blank-description records survive Excel round trip",
+    "status": "FAIL",
+    "evidence": {
+      "status": 200,
+      "originalId": 19,
+      "import": {
+        "status": "Session 'Audit Blank Import' imported successfully",
+        "session_name": "Audit Blank Import",
+        "imported": {
+          "infringements": 18,
+          "history": 18
+        }
+      }
+    }
+  },
+  {
+    "name": "Apply-all audits each applied penalty",
+    "status": "FAIL",
+    "evidence": [
+      {
+        "id": 22,
+        "infringement_id": 21,
+        "action": "penalty_applied",
+        "performed_by": "Audit",
+        "observer": null,
+        "details": "Penalty applied and warnings reset if white line.",
+        "timestamp": "2026-10-06T16:46:57.710743+05:30"
+      },
+      {
+        "id": 21,
+        "infringement_id": 21,
+        "action": "created",
+        "performed_by": "System",
+        "observer": null,
+        "details": "Contact | warning_count=1 | penalty_due=Yes | penalty_description=10 Sec",
+        "timestamp": "2026-10-06T16:46:57.707055+05:30"
+      },
+      {
+        "id": 20,
+        "infringement_id": 20,
+        "action": "created",
+        "performed_by": "System",
+        "observer": null,
+        "details": "Contact | warning_count=1 | penalty_due=Yes | penalty_description=10 Sec",
+        "timestamp": "2026-10-06T16:46:57.702356+05:30"
+      }
+    ]
+  },
+  {
+    "name": "Failed session switch never falls back to control DB writes",
+    "status": "PASS",
+    "evidence": {
+      "status": 400,
+      "response": {
+        "detail": "Database error: Table does not exist. Please ensure a session is active."
+      },
+      "controlRows": []
+    }
+  }
+]

@@ -259,8 +259,8 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls') && !file.name.endsWith('.csv')) {
-        alert('Please select an Excel file (.xlsx or .xls) or CSV file (.csv)');
+      if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.csv')) {
+        alert('Please select an Excel file (.xlsx) or CSV file (.csv)');
         return;
       }
       setImportFile(file);
@@ -287,14 +287,14 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
 
   return (
     <>
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Calendar className="h-5 w-5" />
               <CardTitle>Session Management</CardTitle>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -347,7 +347,7 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
               No sessions found. Create a new session to get started.
             </div>
           ) : (
-            <ScrollArea className="h-[400px]">
+            <div className="h-[400px] overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -437,7 +437,7 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
                   ))}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -546,7 +546,7 @@ export function SessionManager({ onSessionChange, onSessionSelected, onSessionCr
               <Input
                 id="import-file"
                 type="file"
-                accept=".xlsx,.xls,.csv"
+                accept=".xlsx,.csv"
                 onChange={handleFileSelect}
                 disabled={isImporting}
               />

@@ -2,7 +2,7 @@
  * JavaScript logic for the infringement log popup window
  * This generates the script that runs in the popup window
  */
-export function generatePopupScript(apiBase: string, warningExpiryMinutes: number, serverTimeOffsetMs: number = 0): string {
+export function generatePopupScript(apiBase: string, warningExpiryMinutes: number, serverTimeOffsetMs: number = 0, sessionName: string | null = null): string {
   // Escape the API base URL for safe embedding in JavaScript
   const apiBaseEscaped = JSON.stringify(apiBase);
   
@@ -12,7 +12,25 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
   let warningExpiryMinutes = ${warningExpiryMinutes};
   let serverTimeOffsetMs = ${Number.isFinite(serverTimeOffsetMs) ? serverTimeOffsetMs : 0};
   let socket = null;
+  let closing = false;
+  let reconnectTimer = null;
+  let refreshGeneration = 0;
   let currentEditId = null;
+  const SESSION_NAME = ${JSON.stringify(sessionName)};
+  const nativeFetch = window.fetch.bind(window);
+  async function fetch(url, options = {}) {
+    return nativeFetch(url, { ...options, headers: { ...(options.headers || {}), ...(SESSION_NAME ? { "X-Session-Name": encodeURIComponent(SESSION_NAME) } : {}) } });
+  }
+  async function fetchAll() {
+    const items = []; let data;
+    for (let page = 1; ; page++) {
+      const response = await fetch(API_BASE + "/infringements/?limit=1000&page=" + page);
+      if (!response.ok) throw new Error("Session unavailable or changed. Reopen this log.");
+      data = await response.json(); items.push(...data.items);
+      if (page >= data.total_pages) break;
+    }
+    return { ok: true, json: async () => ({ ...data, items }) };
+  }
 
   function getServerNow() {
     return new Date(Date.now() + serverTimeOffsetMs);
@@ -145,6 +163,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
   // Check if this is a 2nd warning for white line or yellow zone
   // This calculates the actual current warning count by counting only non-expired warnings
   function isSecondWarning(inf, allInfringements) {
+    if (typeof inf.warning_flag === "boolean") return inf.warning_flag;
     const isWarning = inf.penalty_description === "Warning";
     if (!isWarning) return false;
     
@@ -265,6 +284,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
 
   // Refresh the table with current data
   async function refreshTable() {
+    const generation = ++refreshGeneration;
     const tbody = document.getElementById("tableBody");
     if (!tbody) {
       console.error("Table body not found");
@@ -274,12 +294,13 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     try {
       // Fetch with high limit to get all infringements for popup display
       console.log("Fetching from:", API_BASE + "/infringements/?page=1&limit=1000");
-      const response = await fetch(API_BASE + "/infringements/?page=1&limit=1000");
+      const response = await fetchAll();
       if (!response.ok) {
         throw new Error("Failed: " + response.status + " " + response.statusText);
       }
 
       const responseData = await response.json();
+      if (generation !== refreshGeneration) return;
       if (responseData.server_time_utc) {
         serverTimeOffsetMs = new Date(responseData.server_time_utc).getTime() - Date.now();
       }
@@ -351,7 +372,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
   window.handleEdit = async function(id) {
     try {
       // Fetch with high limit to get all infringements for editing
-      const response = await fetch(API_BASE + "/infringements/?page=1&limit=1000");
+      const response = await fetchAll();
       if (!response.ok) {
         throw new Error("Failed to fetch");
       }
@@ -370,11 +391,6 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       document.getElementById("editKart").value = inf.kart_number || "";
       let turnValue = inf.turn_number ? String(inf.turn_number) : "";
       let observerValue = inf.observer || "";
-      if (turnValue.trim() === "" && observerValue.trim() !== "") {
-        turnValue = observerValue;
-      } else if (observerValue.trim() === "" && turnValue.trim() !== "") {
-        observerValue = turnValue;
-      }
       document.getElementById("editTurn").value = turnValue;
       document.getElementById("editObserver").value = observerValue;
       
@@ -447,7 +463,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       if (response.ok) {
         await refreshTable();
         if (window.opener) {
-          window.opener.postMessage({ type: "deleteInfringement", id: id }, "*");
+          window.opener.postMessage({ type: "deleteInfringement", id: id }, window.location.origin);
         }
       } else {
         alert("Failed to delete");
@@ -487,18 +503,6 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
     }
   }
 
-  function handleTurnInput() {
-    const turnInput = document.getElementById("editTurn");
-    const observerInput = document.getElementById("editObserver");
-    observerInput.value = turnInput.value;
-  }
-
-  function handleObserverInput() {
-    const turnInput = document.getElementById("editTurn");
-    const observerInput = document.getElementById("editObserver");
-    turnInput.value = observerInput.value;
-  }
-
   // Event listeners
   document.getElementById("searchInput").addEventListener("input", filterTable);
   document.getElementById("filterSelect").addEventListener("change", filterTable);
@@ -516,8 +520,6 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
   document.getElementById("cancelEdit").addEventListener("click", closeModal);
   document.getElementById("editInfringement").addEventListener("change", handleInfringementChange);
   document.getElementById("editPenalty").addEventListener("change", handlePenaltyChange);
-  document.getElementById("editTurn").addEventListener("input", handleTurnInput);
-  document.getElementById("editObserver").addEventListener("input", handleObserverInput);
 
   // Edit form submission
   document.getElementById("editForm").addEventListener("submit", async function(e) {
@@ -572,7 +574,7 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
         closeModal();
         await refreshTable();
         if (window.opener) {
-          window.opener.postMessage({ type: "updateInfringement", id: currentEditId }, "*");
+          window.opener.postMessage({ type: "updateInfringement", id: currentEditId }, window.location.origin);
         }
       } else {
         const errorText = await response.text();
@@ -587,35 +589,16 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
 
   // Listen for messages from parent window
   window.addEventListener("message", async function(e) {
-    if (e.data && e.data.type === "updateInfringements") {
+    if (e.origin === window.location.origin && e.source === window.opener && e.data && e.data.type === "updateInfringements") {
       await refreshTable();
     }
   });
 
   // WebSocket connection for real-time updates
+  function connectSocket() {
+  if (closing) return;
   try {
-    // Use same origin (nginx proxy) if API_BASE uses a different port
-    // This avoids direct port access which may be blocked
-    let wsUrl;
-    if (!API_BASE || API_BASE.startsWith('/')) {
-      // Relative URL - use same origin
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = protocol + '//' + window.location.host + '/ws';
-    } else {
-      const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
-      const apiPortMatch = API_BASE.match(/:(\d+)/);
-      const apiPort = apiPortMatch ? apiPortMatch[1] : null;
-      
-      // If ports differ, use same origin (nginx will proxy)
-      if (apiPort && apiPort !== currentPort) {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        wsUrl = protocol + '//' + window.location.host + '/ws';
-      } else {
-        // Otherwise, convert API_BASE to WebSocket URL
-        wsUrl = API_BASE.replace(/^http/, "ws").replace(/\\/$/, "") + "/ws";
-      }
-    }
-    
+    const wsUrl = API_BASE.replace(/^http/, "ws").replace(/\\/$/, "") + "/ws";
     socket = new WebSocket(wsUrl);
     
     socket.onmessage = function(e) {
@@ -639,12 +622,19 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
       console.error("WS error:", error);
     };
     
+    socket.onclose = function() {
+      if (!closing) reconnectTimer = setTimeout(connectSocket, 2000);
+    };
     socket.onopen = function() {
+      refreshTable();
       console.log("WS connected");
     };
   } catch (error) {
     console.error("WS failed:", error);
+    if (!closing) reconnectTimer = setTimeout(connectSocket, 2000);
   }
+  }
+  connectSocket();
 
   // Initial table load
   console.log("Popup script initialized, API_BASE:", API_BASE);
@@ -652,6 +642,8 @@ export function generatePopupScript(apiBase: string, warningExpiryMinutes: numbe
 
   // Cleanup on window close
   window.addEventListener("beforeunload", function() {
+    closing = true;
+    clearTimeout(reconnectTimer);
     if (socket) {
       socket.close();
     }

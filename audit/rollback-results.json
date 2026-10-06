@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Failed import preserves prior active session",
+    "status": "FAIL",
+    "evidence": {
+      "status": 500,
+      "response": {
+        "detail": "Failed to import data: (psycopg2.errors.NumericValueOutOfRange) integer out of range\n\n[SQL: INSERT INTO infringements (session_name, kart_number, turn_number, description, observer, warning_count, penalty_due, penalty_description, penalty_taken, timestamp) VALUES (%(session_name)s, %(kart_number)s, %(turn_number)s, %(description)s, %(observer)s, %(warning_count)s, %(penalty_due)s, %(penalty_description)s, %(penalty_taken)s, %(timestamp)s) RETURNING infringements.id]\n[parameters: {'session_name': 'Audit Bad Rollback', 'kart_number': 2147483648, 'turn_number': None, 'description': 'Contact', 'observer': None, 'warning_count': 1, 'penalty_due': 'Yes', 'penalty_description': '10 Sec', 'penalty_taken': None, 'timestamp': datetime.datetime(2026, 10, 6, 16, 49, 5, 175853, tzinfo=tzoffset(None, 19800))}]\n(Background on this error at: https://sqlalche.me/e/20/9h9h)"
+      },
+      "active": [
+        {
+          "name": "Audit Bad Rollback",
+          "status": "active",
+          "started_at": "2026-10-06T11:19:05.169678+05:30"
+        }
+      ],
+      "remainingRecords": {
+        "items": [],
+        "total": 0,
+        "page": 1,
+        "limit": 300,
+        "total_pages": 1,
+        "server_time_utc": "2026-10-06T11:19:05.251512Z"
+      }
+    }
+  }
+]

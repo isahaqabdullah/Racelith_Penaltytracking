@@ -1,0 +1,13 @@
+[
+  {
+    "name": "Readiness reports database outage",
+    "status": "FAIL",
+    "evidence": {
+      "healthStatus": 200,
+      "healthResponse": {
+        "status": "ok"
+      },
+      "sessionEndpointStatus": 500
+    }
+  }
+]

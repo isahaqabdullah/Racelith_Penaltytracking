@@ -1,0 +1,768 @@
+[
+  {
+    "name": "Database-aware readiness",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Create hyphenated session",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Three warnings then fresh cycle",
+    "status": "PASS",
+    "evidence": [
+      {
+        "id": 1,
+        "kart_number": 42,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:07.581652+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      },
+      {
+        "id": 2,
+        "kart_number": 42,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 2,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:07.593685+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      },
+      {
+        "id": 3,
+        "kart_number": 42,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 3,
+        "penalty_due": "Yes",
+        "penalty_description": "5 sec Stop & Go",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:07.601459+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      },
+      {
+        "id": 4,
+        "kart_number": 42,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:07.615134+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      }
+    ]
+  },
+  {
+    "name": "UTC API timestamps",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Chosen penalty preserved on metadata edit 43",
+    "status": "PASS",
+    "evidence": {
+      "id": 5,
+      "kart_number": 43,
+      "turn_number": null,
+      "description": "White Line Infringement",
+      "observer": "Edited",
+      "warning_count": 1,
+      "penalty_due": "Yes",
+      "penalty_description": "10 Sec",
+      "penalty_taken": null,
+      "timestamp": "2026-10-06T17:48:07.655132+05:30",
+      "session_name": "Fixed API a39a4667-Race",
+      "penalty_origin": "manual",
+      "review_required": false
+    }
+  },
+  {
+    "name": "Served penalty preserved 43",
+    "status": "PASS",
+    "evidence": {
+      "id": 5,
+      "kart_number": 43,
+      "turn_number": null,
+      "description": "White Line Infringement",
+      "observer": "Served edit",
+      "warning_count": 1,
+      "penalty_due": "No",
+      "penalty_description": "10 Sec",
+      "penalty_taken": "2026-10-06T17:48:07.682647+05:30",
+      "timestamp": "2026-10-06T17:48:07.655132+05:30",
+      "session_name": "Fixed API a39a4667-Race",
+      "penalty_origin": "manual",
+      "review_required": false
+    }
+  },
+  {
+    "name": "Served penalty replacement rejected 43",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Repeated penalty application rejected 43",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Chosen penalty preserved on metadata edit 44",
+    "status": "PASS",
+    "evidence": {
+      "id": 6,
+      "kart_number": 44,
+      "turn_number": null,
+      "description": "Yellow Zone Infringement",
+      "observer": "Edited",
+      "warning_count": 1,
+      "penalty_due": "Yes",
+      "penalty_description": "10 Sec",
+      "penalty_taken": null,
+      "timestamp": "2026-10-06T17:48:07.721097+05:30",
+      "session_name": "Fixed API a39a4667-Race",
+      "penalty_origin": "manual",
+      "review_required": false
+    }
+  },
+  {
+    "name": "Served penalty preserved 44",
+    "status": "PASS",
+    "evidence": {
+      "id": 6,
+      "kart_number": 44,
+      "turn_number": null,
+      "description": "Yellow Zone Infringement",
+      "observer": "Served edit",
+      "warning_count": 1,
+      "penalty_due": "No",
+      "penalty_description": "10 Sec",
+      "penalty_taken": "2026-10-06T17:48:07.746802+05:30",
+      "timestamp": "2026-10-06T17:48:07.721097+05:30",
+      "session_name": "Fixed API a39a4667-Race",
+      "penalty_origin": "manual",
+      "review_required": false
+    }
+  },
+  {
+    "name": "Served penalty replacement rejected 44",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Repeated penalty application rejected 44",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Chosen penalty preserved on metadata edit 45",
+    "status": "PASS",
+    "evidence": {
+      "id": 7,
+      "kart_number": 45,
+      "turn_number": null,
+      "description": "Contact",
+      "observer": "Edited",
+      "warning_count": 1,
+      "penalty_due": "Yes",
+      "penalty_description": "10 Sec",
+      "penalty_taken": null,
+      "timestamp": "2026-10-06T17:48:07.778666+05:30",
+      "session_name": "Fixed API a39a4667-Race",
+      "penalty_origin": "manual",
+      "review_required": false
+    }
+  },
+  {
+    "name": "Served penalty preserved 45",
+    "status": "PASS",
+    "evidence": {
+      "id": 7,
+      "kart_number": 45,
+      "turn_number": null,
+      "description": "Contact",
+      "observer": "Served edit",
+      "warning_count": 1,
+      "penalty_due": "No",
+      "penalty_description": "10 Sec",
+      "penalty_taken": "2026-10-06T17:48:07.798857+05:30",
+      "timestamp": "2026-10-06T17:48:07.778666+05:30",
+      "session_name": "Fixed API a39a4667-Race",
+      "penalty_origin": "manual",
+      "review_required": false
+    }
+  },
+  {
+    "name": "Served penalty replacement rejected 45",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Repeated penalty application rejected 45",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "delete warning recalculates remaining cycle",
+    "status": "PASS",
+    "evidence": [
+      {
+        "id": 10,
+        "session_name": "Fixed API a39a4667-Race",
+        "kart_number": 46,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 2,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_origin": "automatic",
+        "review_required": false,
+        "timestamp": "2026-10-06T12:18:07.849992Z",
+        "penalty_taken": null,
+        "warning_flag": true
+      },
+      {
+        "id": 9,
+        "session_name": "Fixed API a39a4667-Race",
+        "kart_number": 46,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_origin": "automatic",
+        "review_required": false,
+        "timestamp": "2026-10-06T12:18:07.841125Z",
+        "penalty_taken": null,
+        "warning_flag": false
+      }
+    ]
+  },
+  {
+    "name": "delete warning retains audit",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "edit warning recalculates remaining cycle",
+    "status": "PASS",
+    "evidence": [
+      {
+        "id": 13,
+        "session_name": "Fixed API a39a4667-Race",
+        "kart_number": 47,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 2,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_origin": "automatic",
+        "review_required": false,
+        "timestamp": "2026-10-06T12:18:07.903985Z",
+        "penalty_taken": null,
+        "warning_flag": true
+      },
+      {
+        "id": 12,
+        "session_name": "Fixed API a39a4667-Race",
+        "kart_number": 47,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_origin": "automatic",
+        "review_required": false,
+        "timestamp": "2026-10-06T12:18:07.894264Z",
+        "penalty_taken": null,
+        "warning_flag": false
+      },
+      {
+        "id": 11,
+        "session_name": "Fixed API a39a4667-Race",
+        "kart_number": 47,
+        "turn_number": null,
+        "description": "Contact",
+        "observer": "Regression",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_origin": "manual",
+        "review_required": false,
+        "timestamp": "2026-10-06T12:18:07.886282Z",
+        "penalty_taken": null,
+        "warning_flag": false
+      }
+    ]
+  },
+  {
+    "name": "edit warning retains audit",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "move warning recalculates remaining cycle",
+    "status": "PASS",
+    "evidence": [
+      {
+        "id": 16,
+        "session_name": "Fixed API a39a4667-Race",
+        "kart_number": 48,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 2,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_origin": "automatic",
+        "review_required": false,
+        "timestamp": "2026-10-06T12:18:07.966084Z",
+        "penalty_taken": null,
+        "warning_flag": true
+      },
+      {
+        "id": 15,
+        "session_name": "Fixed API a39a4667-Race",
+        "kart_number": 48,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_origin": "automatic",
+        "review_required": false,
+        "timestamp": "2026-10-06T12:18:07.953735Z",
+        "penalty_taken": null,
+        "warning_flag": false
+      }
+    ]
+  },
+  {
+    "name": "move warning retains audit",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Corrected served automatic penalty flagged for review",
+    "status": "PASS",
+    "evidence": {
+      "id": 19,
+      "session_name": "Fixed API a39a4667-Race",
+      "kart_number": 50,
+      "turn_number": null,
+      "description": "White Line Infringement",
+      "observer": "Regression",
+      "warning_count": 0,
+      "penalty_due": "No",
+      "penalty_description": "5 sec Stop & Go",
+      "penalty_origin": "automatic",
+      "review_required": true,
+      "timestamp": "2026-10-06T12:18:08.025678Z",
+      "penalty_taken": "2026-10-06T12:18:08.039507Z",
+      "warning_flag": false
+    }
+  },
+  {
+    "name": "Served automatic penalty survives incident-type correction",
+    "status": "PASS",
+    "evidence": {
+      "id": 19,
+      "kart_number": 50,
+      "turn_number": null,
+      "description": "Contact",
+      "observer": "Regression",
+      "warning_count": 1,
+      "penalty_due": "No",
+      "penalty_description": "5 sec Stop & Go",
+      "penalty_taken": "2026-10-06T17:48:08.039507+05:30",
+      "timestamp": "2026-10-06T17:48:08.025678+05:30",
+      "session_name": "Fixed API a39a4667-Race",
+      "penalty_origin": "manual",
+      "review_required": true
+    }
+  },
+  {
+    "name": "Equal timestamp cycle uses ID tie-break",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Backdated incident excludes later warnings",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Changing a warning to white-line joins automatic cycle",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "White and yellow cycles remain separate",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Expired warnings excluded",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Future incident rejected",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid kart -1 rejected",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid kart 0 rejected",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid kart 2147483648 rejected",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid pagination rejected",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid expiry rejected",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Retried write returns original record",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Reused request key with changed data rejected",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Concurrent warnings serialize correctly",
+    "status": "PASS",
+    "evidence": [
+      {
+        "id": 36,
+        "kart_number": 56,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 3,
+        "penalty_due": "Yes",
+        "penalty_description": "5 sec Stop & Go",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:08.270058+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      },
+      {
+        "id": 37,
+        "kart_number": 56,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:08.272358+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      },
+      {
+        "id": 35,
+        "kart_number": 56,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 2,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:08.266510+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      },
+      {
+        "id": 34,
+        "kart_number": 56,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:08.264116+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      },
+      {
+        "id": 39,
+        "kart_number": 56,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 3,
+        "penalty_due": "Yes",
+        "penalty_description": "5 sec Stop & Go",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:08.277669+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      },
+      {
+        "id": 38,
+        "kart_number": 56,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Regression",
+        "warning_count": 2,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T17:48:08.275044+05:30",
+        "session_name": "Fixed API a39a4667-Race",
+        "penalty_origin": "automatic",
+        "review_required": false
+      }
+    ]
+  },
+  {
+    "name": "Burst above connection pool size completes without deadlock",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Bulk apply succeeds",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Bulk apply records per-incident history",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Backend kart search before pagination",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Page beyond end clamps",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "excel export",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Excel formula is literal text",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "excel round trip preserves all records",
+    "status": "PASS",
+    "evidence": {
+      "status": "Session imported successfully",
+      "session_name": "Fixed API a39a4667-Race excel",
+      "imported": {
+        "infringements": 68,
+        "history": 164
+      }
+    }
+  },
+  {
+    "name": "excel preserves blank description and literal formula",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "excel retains deletion history",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "excel retains served penalties",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "csv export",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "CSV formula escaped",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "csv round trip preserves all records",
+    "status": "PASS",
+    "evidence": {
+      "status": "Session imported successfully",
+      "session_name": "Fixed API a39a4667-Race csv",
+      "imported": {
+        "infringements": 68,
+        "history": 164
+      }
+    }
+  },
+  {
+    "name": "csv preserves blank description and literal formula",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "csv retains deletion history",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "csv retains served penalties",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid import reports rejected row",
+    "status": "PASS",
+    "evidence": {
+      "detail": "Row 10: kart_number: Input should be greater than or equal to 1"
+    }
+  },
+  {
+    "name": "Failed import leaves active session untouched",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Failed import leaves no visible session",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Legacy XLS rejected explicitly",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Oversized upload rejected",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Alias cannot delete actual session",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Original session survives alias attempt",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Stale create/edit/delete/apply rejected",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Export of another session does not switch writes",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid name rejected ' Leading'",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid name rejected 'Trailing '",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid name rejected 'Double  Space'",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid name rejected '1Invalid'",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid name rejected 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Invalid name rejected \"SQL';--\"",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Closed session rejects writes",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Load preserves isolated records",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Export temporary files cleaned",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "No unexpected SQL errors in valid flows",
+    "status": "PASS",
+    "evidence": null
+  }
+]

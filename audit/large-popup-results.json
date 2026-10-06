@@ -1,0 +1,31 @@
+[
+  {
+    "name": "Expanded log fetches beyond 1000 entries",
+    "status": "PASS",
+    "evidence": 1005
+  },
+  {
+    "name": "Expanded log finds oldest entry across pages",
+    "status": "PASS"
+  },
+  {
+    "name": "Expanded log edits entries beyond first 1000",
+    "status": "PASS",
+    "evidence": {
+      "id": 1,
+      "session_name": "Large Popup 1791289203260",
+      "kart_number": 10000,
+      "turn_number": null,
+      "description": "Contact",
+      "observer": "Large Popup Edited",
+      "warning_count": 1,
+      "penalty_due": "No",
+      "penalty_description": "Warning",
+      "penalty_origin": "manual",
+      "review_required": false,
+      "timestamp": "2026-10-06T12:20:03.380877Z",
+      "penalty_taken": null,
+      "warning_flag": false
+    }
+  }
+]

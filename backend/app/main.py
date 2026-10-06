@@ -1,9 +1,12 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from contextlib import asynccontextmanager
 from .routes import session, infringements, penalties, history, infringement_log
 from .ws_manager import manager
-from .database import init_db, switch_session_db, ControlSessionLocal
+from .database import init_db, switch_session_db, ControlSessionLocal, session_factory, lock_lifecycle
 from .models import SessionInfo
 from .vars import (
     get_session_qualifying_mode,
@@ -12,7 +15,7 @@ from .vars import (
     set_warning_expiry_minutes,
 )
 from .utils import validate_session_name
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import logging
 import json
 
@@ -73,12 +76,38 @@ app.include_router(history.router, prefix="/history")
 app.include_router(infringement_log.router, prefix="/infringement_log")
 
 # --- Health check endpoint ---
-@app.get("/api/health")
-def health_check():
+@app.get("/api/live")
+def liveness():
     return {"status": "ok"}
 
+@app.get("/api/health")
+@app.get("/api/ready")
+def readiness():
+    try:
+        with ControlSessionLocal() as control:
+            lock_lifecycle(control, exclusive=False)
+            control.execute(text("SELECT 1"))
+            active = control.query(SessionInfo).filter_by(status="active").first()
+            if active:
+                with session_factory(active)() as db:
+                    db.execute(text("SELECT 1 FROM infringements LIMIT 1"))
+    except Exception:
+        logger.exception("Database readiness failed")
+        return JSONResponse(status_code=503, content={"status": "unavailable"})
+    return {"status": "ok"}
+
+@app.exception_handler(SQLAlchemyError)
+async def database_error(request, exc):
+    logger.error("Database operation failed", exc_info=exc)
+    return JSONResponse(status_code=503, content={"detail": "Database operation failed. Please retry or load a valid session."})
+
+@app.exception_handler(Exception)
+async def unexpected_error(request, exc):
+    logger.error("Request failed", exc_info=exc)
+    return JSONResponse(status_code=500, content={"detail": "Operation failed. Please retry; if it persists, contact the operator."})
+
 class ConfigUpdate(BaseModel):
-    warning_expiry_minutes: int
+    warning_expiry_minutes: int = Field(ge=1, le=1440)
 
 class SessionConfigUpdate(BaseModel):
     qualifying_mode: bool
@@ -166,12 +195,15 @@ async def websocket_endpoint(websocket: WebSocket):
             # Keep connection alive by receiving messages (client may send ping/heartbeat)
             # Use receive() instead of receive_text() to handle both text and binary
             data = await websocket.receive()
+            if data["type"] == "websocket.disconnect":
+                break
             if "text" in data:
                 # Client sent text (could be ping/heartbeat)
                 pass
             elif "bytes" in data:
                 # Client sent binary data
                 pass
+        await manager.disconnect(websocket)
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected normally")
         await manager.disconnect(websocket)

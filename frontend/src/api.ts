@@ -31,14 +31,24 @@ const getApiBase = (): string => {
 
 export const API_BASE = getApiBase();
 
+let activeRequestSession: string | null = null;
+export function setRequestSession(name: string | null) { activeRequestSession = name; }
+export class PartialSubmissionError extends Error {
+  constructor(message: string, public remaining: CreateInfringementPayload[]) { super(message); }
+}
+const errorDetail = (data: any): string => Array.isArray(data?.detail)
+  ? data.detail.map((e: any) => `${e.loc?.slice(1).join('.') || 'Input'}: ${e.msg}`).join('; ')
+  : String(data?.detail || data?.message || 'Request failed');
+
 async function request<T>(
   path: string,
-  init?: RequestInit & { parseJson?: boolean }
+  init?: RequestInit & { parseJson?: boolean; sessionName?: string | null }
 ): Promise<T> {
-  const { parseJson = true, headers, ...rest } = init ?? {};
+  const { parseJson = true, sessionName, headers, ...rest } = init ?? {};
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...((path.startsWith('/infringements') || path.startsWith('/penalties') || path.startsWith('/history')) && (sessionName ?? activeRequestSession) ? { 'X-Session-Name': encodeURIComponent(sessionName ?? activeRequestSession!) } : {}),
       ...(headers ?? {}),
     },
     ...rest,
@@ -53,7 +63,7 @@ async function request<T>(
       try {
         const errorData = await response.json();
         // FastAPI error format: { "detail": "error message" }
-        errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
+        errorMessage = errorDetail(errorData);
       } catch {
         // Fall back to text if JSON parsing fails
         errorMessage = await response.text();
@@ -84,9 +94,13 @@ export interface InfringementRecord {
   penalty_description: string | null;
   penalty_taken: string | null;
   timestamp: string;
+  session_name?: string;
+  review_required?: boolean;
+  warning_flag?: boolean;
 }
 
 export interface PendingPenalty {
+  session_name: string;
   id: number;
   kart_number: number;
   description: string;
@@ -119,6 +133,8 @@ export interface CreateInfringementPayload {
   performed_by?: string | null;
   penalty_description?: string | null;
   timestamp?: string | null;
+  request_id?: string;
+  session_name?: string | null;
 }
 
 export type UpdateInfringementPayload = CreateInfringementPayload;
@@ -139,14 +155,15 @@ export interface PaginatedInfringements {
   server_time_utc?: string;
 }
 
-export async function fetchInfringements(page: number = 1, limit: number = 300): Promise<PaginatedInfringements> {
-  return request<PaginatedInfringements>(`/infringements/?page=${page}&limit=${limit}`);
+export async function fetchInfringements(page: number = 1, limit: number = 300, searchKart: string = ''): Promise<PaginatedInfringements> {
+  return request<PaginatedInfringements>(`/infringements/?page=${page}&limit=${limit}${/^\d+$/.test(searchKart) ? `&kart_number=${encodeURIComponent(searchKart)}` : ''}`);
 }
 
 export async function createInfringement(
   payload: CreateInfringementPayload
 ): Promise<InfringementRecord> {
   return request<InfringementRecord>('/infringements/', {
+    sessionName: payload.session_name,
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -157,13 +174,15 @@ export async function updateInfringement(
   payload: UpdateInfringementPayload
 ): Promise<InfringementRecord> {
   return request<InfringementRecord>(`/infringements/${id}`, {
+    sessionName: payload.session_name,
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
-export async function deleteInfringement(id: number): Promise<void> {
+export async function deleteInfringement(id: number, sessionName?: string): Promise<void> {
   await request(`/infringements/${id}`, {
+    sessionName,
     method: 'DELETE',
     parseJson: false,
   });
@@ -175,9 +194,11 @@ export async function fetchPendingPenalties(): Promise<PendingPenalty[]> {
 
 export async function applyIndividualPenalty(
   infringementId: number,
-  performedBy: string
+  performedBy: string,
+  sessionName?: string
 ): Promise<ApplyPenaltyResponse> {
   return request<ApplyPenaltyResponse>(`/penalties/apply_individual/${infringementId}`, {
+    sessionName,
     method: 'POST',
     body: JSON.stringify({ performed_by: performedBy }),
   });
@@ -243,7 +264,7 @@ export async function importSession(file: File): Promise<{ status: string; sessi
       try {
         const errorData = await response.json();
         // FastAPI error format: { "detail": "error message" }
-        errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
+        errorMessage = errorDetail(errorData);
       } catch {
         // Fall back to text if JSON parsing fails
         errorMessage = await response.text();
@@ -282,7 +303,7 @@ export async function exportSession(
         try {
           const errorData = await response.json();
           // FastAPI error format: { "detail": "error message" }
-          errorMessage = errorData.detail || errorData.message || JSON.stringify(errorData);
+          errorMessage = errorDetail(errorData);
         } catch {
           // Fall back to text if JSON parsing fails
           errorMessage = await response.text();

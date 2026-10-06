@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Restart restores active session and records",
+    "status": "PASS",
+    "evidence": {
+      "before": {
+        "name": "Audit Main",
+        "count": 13
+      },
+      "active": [
+        {
+          "name": "Audit Main",
+          "status": "active",
+          "started_at": "2026-10-06T11:12:38.808344+05:30"
+        }
+      ],
+      "count": 13
+    }
+  }
+]

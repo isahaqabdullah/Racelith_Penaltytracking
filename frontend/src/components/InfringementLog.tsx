@@ -20,6 +20,9 @@ interface PaginationProps {
 }
 
 interface InfringementLogProps {
+  searchKartNumber: string;
+  onSearchChange: (value: string) => void;
+  sessionName: string | null;
   infringements: InfringementRecord[];
   onEdit: (infringement: InfringementRecord) => void;
   onDelete: (id: number) => void;
@@ -31,8 +34,8 @@ interface InfringementLogProps {
 
 type FilterType = 'all' | 'warning-flag' | 'penalties';
 
-export function InfringementLog({ infringements, onEdit, onDelete, warningExpiryMinutes = 180, serverTimeOffsetMs = 0, onPopupOpened, pagination }: InfringementLogProps) {
-  const [searchKartNumber, setSearchKartNumber] = useState('');
+export function InfringementLog({ infringements, onEdit, onDelete, warningExpiryMinutes = 180, serverTimeOffsetMs = 0, onPopupOpened, pagination, searchKartNumber, onSearchChange, sessionName }: InfringementLogProps) {
+
   const [filterType, setFilterType] = useState<FilterType>('all');
   const popupWindowRef = useRef<Window | null>(null);
   const getServerNow = () => new Date(Date.now() + serverTimeOffsetMs);
@@ -141,6 +144,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
   // Example: If Warning 1 expires, Warning 2 becomes the 1st valid warning (no flag)
   //          If Warning 1 and Warning 2 are both valid, Warning 2 is the 2nd warning (shows flag)
   const isSecondWarning = (inf: InfringementRecord) => {
+    if (inf.warning_flag !== undefined) return inf.warning_flag;
     const isWarning = inf.penalty_description === 'Warning';
     if (!isWarning) return false;
     
@@ -244,25 +248,13 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
       // Get API base URL - use window location to determine if we're in Docker or local
       let apiBase = API_BASE || 'http://localhost:8000';
       
-      // If API_BASE is relative or undefined, try to construct from current window location
-      if (!apiBase || apiBase.startsWith('/')) {
-        const protocol = window.location.protocol;
-        const hostname = window.location.hostname;
-        // In Docker, backend is typically on port 8000, frontend on 3000
-        // Try to use the same hostname but different port
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-          apiBase = 'http://localhost:8000';
-        } else {
-          // In production/Docker, try to use the same hostname
-          apiBase = `${protocol}//${hostname}:8000`;
-        }
-      }
-      
+      if (apiBase.startsWith('/')) apiBase = new URL(apiBase, window.location.origin).href.replace(/\/$/, '');
+
       console.log('Opening popup with API_BASE:', apiBase);
       const expiryMins = warningExpiryMinutes || 180;
       
       // Generate HTML using the refactored template
-      const htmlContent = generatePopupHTML(apiBase, expiryMins, serverTimeOffsetMs);
+      const htmlContent = generatePopupHTML(apiBase, expiryMins, serverTimeOffsetMs, sessionName);
 
       // Write content to the window
       try {
@@ -303,8 +295,8 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
   return (
     <Card className="flex flex-col overflow-hidden" style={{ height: '750px', maxHeight: '750px' }}>
       <CardHeader className="flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <CardTitle>Recent Infringements</CardTitle>
             <Button
               type="button"
@@ -317,12 +309,12 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
               <Maximize2 className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {searchKartNumber && (
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setSearchKartNumber('')}
+                onClick={() => onSearchChange('')}
                 className="h-7 px-3 text-xs"
               >
                 Back
@@ -343,7 +335,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
             </Select>
             {pagination && (
               <>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Label htmlFor="page-size" className="text-xs text-muted-foreground whitespace-nowrap">
                     Entries:
                   </Label>
@@ -396,7 +388,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                 type="text"
                 placeholder="Search by kart #"
                 value={searchKartNumber}
-                onChange={(e) => setSearchKartNumber(e.target.value)}
+                onChange={(e) => onSearchChange(e.target.value)}
                 className="w-full"
               />
             </div>
@@ -504,7 +496,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                         <td className="p-2 align-middle whitespace-nowrap">{inf.penalty_description ?? '—'}</td>
                         <td className="p-2 align-middle whitespace-nowrap">{inf.observer ?? '—'}</td>
                         <td className="p-2 align-middle whitespace-nowrap">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                           <Badge 
                             variant={statusVariant}
                             style={customStyle}
@@ -517,7 +509,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                                 viewBox="0 0 24 24" 
                                 fill="none"
                                 style={{ backgroundColor: '#e5e7eb' }}
-                                title="Second warning - next warning will result in penalty"
+                                aria-label="Second warning - next warning will result in penalty"
                               >
                                 {/* Grey background */}
                                 <rect x="0" y="0" width="24" height="24" fill="#e5e7eb"/>
@@ -539,9 +531,11 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                         </td>
                         <td className="p-2 align-middle whitespace-nowrap sticky right-0 z-20 bg-card border-l pl-4">
                           <div className="flex justify-end gap-2">
+                            {inf.review_required && <Badge variant="destructive">Correction needs review</Badge>}
                             <Button
                               size="sm"
                               variant="ghost"
+                              aria-label={`Edit infringement ${inf.id}`}
                               onClick={() => onEdit(inf)}
                             >
                               <Pencil className="h-4 w-4" />
@@ -549,6 +543,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
                             <Button
                               size="sm"
                               variant="ghost"
+                              aria-label={`Delete infringement ${inf.id}`}
                               onClick={() => onDelete(inf.id)}
                             >
                               <Trash2 className="h-4 w-4 text-red-600" />
@@ -566,7 +561,7 @@ export function InfringementLog({ infringements, onEdit, onDelete, warningExpiry
         {pagination && (
           <div className="px-6 py-2 border-t bg-card">
             <div className="text-xs text-muted-foreground">
-              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} entries
+              Showing {pagination.total === 0 ? 0 : ((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} entries
             </div>
           </div>
         )}

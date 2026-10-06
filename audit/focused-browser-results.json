@@ -1,0 +1,87 @@
+[
+  {
+    "name": "Edit observer and turn fields independent",
+    "status": "PASS"
+  },
+  {
+    "name": "Failed edit retains open dialog and draft",
+    "status": "PASS"
+  },
+  {
+    "name": "Successful edit closes dialog and preserves selected penalty",
+    "status": "PASS",
+    "evidence": {
+      "id": 1,
+      "session_name": "Focused 1791289163221",
+      "kart_number": 901,
+      "turn_number": "T3",
+      "description": "White Line Infringement",
+      "observer": "Observer Edited",
+      "warning_count": 1,
+      "penalty_due": "Yes",
+      "penalty_description": "10 Sec",
+      "penalty_origin": "manual",
+      "review_required": false,
+      "timestamp": "2026-10-06T12:19:23.297154Z",
+      "penalty_taken": null,
+      "warning_flag": false
+    }
+  },
+  {
+    "name": "Expanded log receives live API changes",
+    "status": "PASS"
+  },
+  {
+    "name": "Popup edit fields independent",
+    "status": "PASS"
+  },
+  {
+    "name": "Popup edit saves correctly",
+    "status": "PASS",
+    "evidence": {
+      "id": 1,
+      "session_name": "Focused 1791289163221",
+      "kart_number": 901,
+      "turn_number": "PT4",
+      "description": "White Line Infringement",
+      "observer": "Popup Observer",
+      "warning_count": 1,
+      "penalty_due": "Yes",
+      "penalty_description": "10 Sec",
+      "penalty_origin": "manual",
+      "review_required": false,
+      "timestamp": "2026-10-06T12:19:23.297154Z",
+      "penalty_taken": null,
+      "warning_flag": false
+    }
+  },
+  {
+    "name": "Popup deletion happens once and retains audit",
+    "status": "PASS"
+  },
+  {
+    "name": "Mobile dashboard has no document overflow",
+    "status": "PASS",
+    "evidence": {
+      "width": 390,
+      "scroll": 390
+    }
+  },
+  {
+    "name": "Lost response retains committed draft",
+    "status": "PASS"
+  },
+  {
+    "name": "Lost-response retry does not duplicate event",
+    "status": "PASS"
+  },
+  {
+    "name": "Stale draft rejected without writing to new session",
+    "status": "PASS"
+  },
+  {
+    "name": "No uncaught exceptions in focused browser flows",
+    "status": "PASS",
+    "evidence": []
+  }
+]

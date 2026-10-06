@@ -1,0 +1,357 @@
+RACELITH — END-TO-END AND SECURITY AUDIT
+Date: 6 October 2026
+
+VERDICT
+The ordinary race-control flow works, but the app has confirmed security and
+race-result integrity failures that should be fixed before relying on it at an event.
+
+55 behavioral assertions: 26 passed, 29 failed. These are test assertions, not
+29 distinct vulnerabilities: several assertions expose the same underlying defect.
+The production frontend build also passed.
+
+Testing used the actual React frontend, FastAPI backend and isolated PostgreSQL
+databases. Browser tests used Chrome with two independent pages and Dubai time.
+The local runtime was Python 3.9/PostgreSQL 17; Docker declares Python 3.12 and
+PostgreSQL 15. Docker execution and runtime-version parity remain unverified.
+The test PostgreSQL instance used port 55439 and data under /tmp/racelith-e2e.
+No existing race database was used. Test services have been stopped.
+Application source was not changed; audit scripts and evidence were added here.
+
+PRIORITIZED FINDINGS
+
+1. HIGH — All administrative API operations lack authentication/authorization.
+   Evidence: session creation, infringement creation/edit/deletion, penalty
+   application and configuration writes succeeded without credentials.
+   PUT /api/config accepted an untrusted Origin and changed expiry to 181.
+   WebSocket /ws also admitted https://untrusted.example without credentials.
+   Default HTTP CORS returned Access-Control-Allow-Origin: *.
+   The expiry password is a literal in the browser source, and the API does not
+   verify it. Network access to the backend is enough to exercise these operations.
+   Impact depends on deployment reachability and any protection outside this app.
+   Fix: authenticate on the server, authorize each operation, derive operator
+   identity from the authenticated account, and restrict HTTP and WebSocket origins.
+   Sources: backend/app/main.py:60, :80, :105, :148;
+   backend/app/routes/session.py:31; frontend/src/App.tsx:477.
+
+2. HIGH — A cross-origin window message can delete a record without confirmation.
+   Reproduction: an opened page at http://localhost:3000 posted
+   {type:'deleteInfringement', id:2} to its opener at http://127.0.0.1:3000.
+   The victim dashboard deleted record 2. No confirmation dialog was requested.
+   Prerequisite: an attacker-controlled page has a reference to the dashboard
+   window, such as through an opener relationship.
+   Fix: verify both event.origin and event.source against the intended popup;
+   validate messages and authorize the deletion on the server.
+   Source: frontend/src/App.tsx:258.
+
+3. HIGH — Spreadsheet exports interpret user text as formulas.
+   Reproduction: create an infringement with description '=1+1', then export.
+   Excel cell D8 was stored with data_type='f'; CSV contained the raw formula.
+   Importing that uncalculated workbook also dropped the formula-description row.
+   The probe used a harmless formula; no external connections or commands ran.
+   Fix: serialize untrusted spreadsheet fields as literal text, including
+   formula-leading characters in CSV, and test round-trip preservation.
+   Sources: backend/app/utils.py:188, :359, :446.
+
+4. HIGH — The production Compose override still publishes PostgreSQL.
+   Evidence: rendering docker-compose.yml plus docker-compose.prod.yml returned
+   db.ports with published=5432 and target=5432. The override's ports: [] did not
+   remove the inherited mapping. No host_ip restriction was present.
+   Actual public exposure depends on deployment/firewall configuration; it was
+   not tested against a deployed host.
+   Fix: explicitly reset the inherited port list using supported Compose syntax,
+   or separate development port bindings from the production definition.
+   Sources: docker-compose.yml:12; docker-compose.prod.yml:9.
+
+5. HIGH — Editing white-line or yellow-zone penalties silently removes them.
+   Reproduction: create either type with '10 Sec', then edit only the observer.
+   Both records changed from penalty_due='Yes', penalty='10 Sec' to
+   penalty_due='No', penalty='Warning'.
+   Fix: use one penalty evaluator for create/update and honor explicit choices;
+   changing observer or turn must not reevaluate penalty policy.
+   Source: backend/app/routes/infringements.py:321, :350, :391, :433.
+
+6. HIGH — Editing a served penalty makes it pending again.
+   Reproduction: create Contact/10 Sec, apply it, then edit its observer.
+   The record retained penalty_taken but changed back to penalty_due='Yes' and
+   reappeared in the pending queue.
+   Fix: preserve served state on metadata edits and implement an explicit,
+   separately audited action for reopening a penalty.
+   Source: backend/app/routes/infringements.py:448.
+
+7. HIGH — Removing an earlier warning leaves the dependent penalty intact.
+   Reproduction: log three white-line warnings, then delete the first.
+   The third still had warning_count=3 and an outstanding stop-and-go penalty,
+   although only two infringements remained.
+   Fix: recalculate the affected kart/type cycle after edits or deletions, with
+   a clear policy for previously served penalties.
+   Source: backend/app/routes/infringements.py:503.
+
+8. HIGH — Deletion erases the audit trail.
+   Reproduction: delete a warning and query its kart history: the deleted action
+   and the original record's history are absent. A direct database query for
+   infringement_id=8 also returned no history rows.
+   Cause: cascading history deletion and history retrieval through live records.
+   Fix: preserve immutable audit events or use soft deletion with independent
+   session/kart identifiers on audit records.
+   Sources: backend/app/models.py:43; backend/app/routes/history.py:17;
+   backend/app/routes/infringements.py:510.
+
+9. MEDIUM — Apply-all records only one of several applied penalties in history.
+   Reproduction: create two Contact/10 Sec penalties for kart 87 and call
+   POST /penalties/apply/87. Both were served, but only one penalty_applied
+   event was stored, attached to the last infringement.
+   Fix: record a history event for each changed penalty in the same transaction.
+   Source: backend/app/routes/penalties.py:33, :51.
+
+10. HIGH — Writes succeed when there is no active session.
+    Reproduction: POST /infringements/ before starting a session returned 200.
+    After closing Audit Main, another create also returned 200.
+    These records went to the control database, so they are outside the intended
+    race database and do not appear when a race session is loaded.
+    Fix: reject race data reads/writes unless an active session is resolved;
+    do not use the control database as a fallback for race operations.
+    Sources: backend/app/database.py:33, :36, :75; :13 creates all model tables.
+
+11. HIGH — Case variants can drop a session database while leaving its record.
+    Reproduction: DELETE /session/delete?name=AUDIT%20ISOLATION returned 200 and
+    dropped audit_isolation_db, but metadata for 'Audit Isolation' remained active.
+    The next infringement read returned 400.
+    Cause: the physical database name is lowercased, while metadata matching is
+    case-sensitive. Similar name aliases need consistent handling across routes.
+    Fix: resolve an existing canonical session before any database operation;
+    use a unique immutable database identifier rather than display-name mapping.
+    Source: backend/app/routes/session.py:204.
+
+12. HIGH — A failed import replaces the active session with an empty one.
+    Reproduction: export Audit Rollback, change a valid row's kart number to
+    2147483648 and session name to Audit Bad Rollback, then import.
+    The response was 500 'integer out of range'. Audit Bad Rollback remained
+    active with zero infringements; Audit Rollback had already been closed.
+    Fix: validate every row before side effects; stage the database/import first,
+    activate only after successful commit, and remove failed staging artifacts.
+    Source: backend/app/routes/session.py:531 through :642.
+
+13. HIGH — Concurrent submissions produce extra penalties.
+    Reproduction: after two warnings for kart 85, submit five warnings together.
+    Counts returned were [1,3,3,3,1], producing three penalties.
+    A serialized sequence would be [3,1,2,3,1], producing two penalties.
+    Fix: serialize warning-cycle updates per session/kart/type with database
+    locking or an equivalent atomic design; test with simultaneous clients.
+    Source: backend/app/routes/infringements.py:114 through :220.
+
+14. MEDIUM — Equal timestamps prevent warning-cycle reset.
+    Reproduction: four white-line warnings with the same timestamp returned
+    [(1,No),(2,No),(3,Yes),(3,Yes)], rather than resetting the fourth to 1.
+    Fix: order events using a stable timestamp-plus-ID sequence and use an
+    unambiguous boundary after the last penalty.
+    Source: backend/app/routes/infringements.py:125, :130.
+
+15. HIGH — Event time handling counts later/future warnings in earlier events.
+    Reproduction A: submit a warning dated 30 days ahead, then a current warning.
+    The current warning count became 2.
+    Reproduction B: submit warnings at t0 and t0+1h, then backdate a warning to
+    t0+1m. That earlier event became a third-warning penalty.
+    Fix: validate allowed client timestamps, bound counted events above as well
+    as below, and define deterministic replay for legitimate backdated entries.
+    Source: backend/app/routes/infringements.py:46, :127, :174.
+
+16. HIGH — Observer and turn fields overwrite each other.
+    Reproduction: type 'Browser Audit' in Observer without entering a turn.
+    Saved turn_number was 'Browser Audit'. The inverse setter also overwrites
+    observer when turn is changed. The edit dialog has the same coupling.
+    Fix: maintain the fields independently.
+    Sources: frontend/src/components/InfringementForm.tsx:153, :161;
+    frontend/src/components/EditInfringementDialog.tsx:72, :77.
+
+17. MEDIUM — Failed saves discard the user's draft.
+    Reproduction: return a simulated HTTP 500 for the form's create request.
+    The error toast appeared, but the kart and other form fields were cleared.
+    This was the only mocked API failure; ordinary data-layer tests used real API
+    responses. The cause is that App catches the error and resolves onSubmit,
+    so the form assumes success. Edit handling has the same error-swallowing risk.
+    Fix: return an explicit result or rethrow errors; clear/close only on success.
+    Sources: frontend/src/App.tsx:317, :370;
+    frontend/src/components/InfringementForm.tsx:273, :285.
+
+18. MEDIUM — Live updates corrupt pagination.
+    Reproduction: select 100 entries, navigate to page 2, then create an entry
+    from another client. The log rendered 116 rows from page 1, with the new
+    kart 9999 first, while displaying 'Page 2 of 1' and
+    'Showing 101 to 116 of 116 entries'. Screenshots are included.
+    Cause: the WebSocket subscription captures the initial loadData/page/limit.
+    Fix: use current pagination state when handling events and reconcile page
+    bounds after changes.
+    Source: frontend/src/App.tsx:210, :225, :247.
+
+19. MEDIUM — Kart search excludes records on other pages.
+    Reproduction: with 100 entries selected, search for kart 71, whose record
+    is on page 2. The UI said 'No infringements found' although the API contained it.
+    Fix: apply the search on the server before pagination, or clearly label
+    and constrain it as a current-page filter.
+    Source: frontend/src/components/InfringementLog.tsx:215.
+
+20. HIGH — Excel import silently drops valid exported rows.
+    Reproduction: create kart 86 with only the required kart field, export,
+    rename the session in the workbook, and import. The import succeeded but
+    kart 86 was missing. The importer requires a truthy description even though
+    the API/UI allow it to be blank. Formula rows also disappeared with data_only.
+    Fix: align import validation with the app's schema and report every rejected
+    row explicitly; guarantee round-trip counts and field preservation.
+    Source: backend/app/utils.py:446, :602; CSV has a similar check at :865.
+
+21. MEDIUM — The documented example session name fails.
+    Reproduction: start 'Race Day 2024-01-15', the example in the Create dialog.
+    It passed validation but returned 500 because CREATE DATABASE uses an
+    unquoted name containing hyphens.
+    Fix: use safely quoted identifiers or a canonical slug that validation and
+    all routes agree on. Do not remove validation to resolve this.
+    Source: backend/app/database.py:155; backend/app/utils.py:17.
+
+22. MEDIUM — Kart numbers and attribution are insufficiently validated.
+    Reproduction: create kart -99 with arbitrary performed_by text; response 200.
+    The malformed workbook also demonstrated integer overflow returning 500.
+    Fix: validate the permitted kart range and field lengths in shared schemas;
+    validate all imported rows; take operator identity from server authentication.
+    Source: backend/app/schemas.py:5; backend/app/routes/session.py:604.
+
+23. MEDIUM — Error responses disclose SQL and internal parameters.
+    Evidence: the hyphenated-name error exposed CREATE DATABASE SQL; the failed
+    workbook import exposed an INSERT statement, columns and input parameters.
+    Fix: return stable user-facing errors and retain detailed exceptions only
+    in restricted server logs.
+    Sources: backend/app/routes/session.py:60, :642;
+    backend/app/routes/infringements.py:260.
+
+24. MEDIUM — Mobile session controls overflow the screen.
+    Evidence: at viewport width 390, document scrollWidth was 489. New Session
+    extended beyond the page and the session table/actions were clipped.
+    Fix: wrap header controls and provide an intentional responsive table layout.
+    Evidence: mobile-sessions.png.
+    Source: frontend/src/components/SessionManager.tsx:288.
+
+25. MEDIUM — The health endpoint reports success during a database outage.
+    Reproduction: stop the disposable PostgreSQL server.
+    GET /api/health returned 200 {status:ok}; GET /session/ returned 500.
+    Compose uses that endpoint to decide whether the backend is healthy.
+    Fix: distinguish liveness from readiness and have readiness verify essential
+    database access without exposing connection details.
+    Source: backend/app/main.py:76; docker-compose.yml:42.
+
+DEPENDENCY SECURITY SCANS
+
+npm audit: 7 high-severity affected packages in the frontend dependency tree:
+lodash, nanoid, picomatch, postcss, rollup, source-map-js and vite.
+The full advisory data and suggested upgrades are in npm-audit.json.
+Several matches concern development/build tooling or conditional APIs, so the
+scanner total must not be treated as seven demonstrated production exploits.
+Vite 6.3.5 is within the upstream advisory's affected range for dev-server
+WebSocket file reads. Production Docker serves built assets through Nginx;
+that dev-server exposure is not the same as the deployed static site.
+Source: https://github.com/vitejs/vite/security/advisories/GHSA-p9ff-h696-f583
+
+pip-audit: 27 advisories across 9 installed packages in the local backend venv:
+anyio, click, idna, mako, pip, python-dotenv, python-multipart, setuptools, starlette.
+This is the local environment snapshot, not a scan of a production Docker image.
+Backend requirements are unpinned, so deployed versions can differ.
+The scanner itself was installed separately under /tmp, not into the app venv.
+Missing declared dateutil/openpyxl/multipart dependencies were installed to run
+the app; the scan includes that resulting environment.
+
+One directly relevant known advisory: Starlette 0.48.0 is affected by
+CVE-2025-62727 / GHSA-7f5h-v6xp-fcq8, a Range-header denial of service in
+FileResponse. Session exports use FileResponse. Upstream identifies 0.49.1 as
+the patch for this advisory. Upgrade FastAPI/Starlette together to compatible
+supported versions that resolve the complete current scan, then pin them.
+No resource-exhaustion attack was run; applicability was checked through version,
+code path and the maintainer advisory.
+Source: https://github.com/Kludex/starlette/security/advisories/GHSA-7f5h-v6xp-fcq8
+Full details: pip-audit.json.
+
+ADDITIONAL CODE-REVIEW RISKS — NOT CLAIMED AS REPRODUCED FAILURES
+
+* Export changes the process-global active database pointer. Concurrent export,
+  import, load and infringement requests need explicit session isolation; this
+  audit did not reproduce export-driven cross-session corruption.
+  Sources: backend/app/routes/session.py:316; backend/app/database.py:97.
+* Session startup uses naive datetime.utcnow() in a timezone-aware database
+  column. The local non-UTC database returned a started_at offset that shifts the
+  apparent start time. Validate with the actual deployment timezone.
+* The UI advertises .xls, while the importer only uses openpyxl's .xlsx loader.
+  A genuine legacy XLS fixture was not exercised.
+* Upload copying and whole-workbook/CSV parsing have no explicit app-level file
+  size/row limit. Large-upload denial of service was not attempted.
+* WebSocket disconnects produced a caught RuntimeError in backend logs because
+  the receive loop does not break on websocket.disconnect; the connection was
+  still removed from the manager.
+
+VERIFIED WORKING
+
+* Production frontend build.
+* Browser session creation, loading, CSV import, export download fallback and
+  disposable session deletion.
+* Multi-kart logging and live updates between browser pages.
+* Ordinary sequential 1st/2nd/3rd warning escalation and subsequent cycle reset.
+* Expired warning exclusion and separate white/yellow warning cycles.
+* Individual penalty application and rejection of a second application.
+* Qualifying form defaults to Fastest Lap Invalidation for white-line entries.
+* Expanded log renders records.
+* Ordinary session load preserves data isolation.
+* JSON/CSV export and ordinary CSV round trip for the tested populated records.
+* Malformed workbook rejection and rejection of SQL punctuation in session names.
+* Backend restart restored Audit Main and all 13 records.
+* No uncaught page exceptions in the completed browser run.
+
+BOUNDARIES
+
+This audit covers a local instance, not a deployed penetration test. Docker build,
+production TLS/proxy configuration, native Save As dialog, backups/restore, long
+race-duration soak tests and exhaustive load testing were not verified.
+For the download test, headless Chrome's native picker was disabled to exercise
+the app's existing anchor-download fallback; backend responses were real.
+
+RECOMMENDED FIX ORDER
+
+1. Server authentication/authorization and popup origin/source checks.
+2. Immutable audit records, served-penalty state, and shared warning evaluation.
+3. Atomic warning updates and session/import isolation.
+4. Spreadsheet safety and dependency upgrades with pinned versions.
+5. Form error recovery, independent fields, pagination/search and mobile controls.
+6. Production port isolation and database-aware readiness.
+
+EVIDENCE AND REPRODUCTION
+
+results.json                  All 55 assertions with actual observed values.
+api-results.json              API workflow and security evidence.
+browser-results.json          Completed browser workflow results.
+extended-results.json         Warning timing/concurrency and audit edge cases.
+rollback-results.json         Corrected failure fixture and actual 500 response.
+security-results.json         Untrusted WebSocket origin and name validation.
+restart-results.json          Record count before/after restart.
+health-results.json           Database outage versus health response.
+pagination-before.png         Page 2 before a live event.
+pagination-after.png          Page 2 label with wrong rows and page count.
+mobile-sessions.png           Narrow-screen overflow.
+export.xlsx / export.csv      Harmless formula and round-trip fixtures.
+browser-export.xlsx           File downloaded through the UI.
+npm-audit.json / pip-audit.json Dependency advisory snapshots.
+
+Probes create/delete sessions and mutate data. They require
+RACELITH_AUDIT_DISPOSABLE=1. Run only against a fresh disposable environment,
+never a real event database. The fixed-name API probes assume an empty database;
+run them sequentially because the application has one global active session.
+
+Reproduce using the repository virtual environment and a fresh PostgreSQL control
+database at 127.0.0.1:55439 named audit_control, owned by audit_user.
+Set DATABASE_URL=postgresql://audit_user@127.0.0.1:55439/audit_control and
+SESSION_EXPORT_DIR=/tmp/racelith-e2e/exports when starting the backend on port 8000.
+Start the frontend on 127.0.0.1:3000.
+
+RACELITH_AUDIT_DISPOSABLE=1 .venv/bin/python audit/api_probe.py
+RACELITH_AUDIT_DISPOSABLE=1 node audit/browser_probe.cjs
+RACELITH_AUDIT_DISPOSABLE=1 .venv/bin/python audit/extended_probe.py
+RACELITH_AUDIT_DISPOSABLE=1 .venv/bin/python audit/rollback_probe.py
+
+The browser probe uses an installed Playwright package and system Chrome.
+Set PLAYWRIGHT_PATH to its absolute package path if it is outside node resolution.
+Security/restart/outage assertions were additional focused live probes; their
+captured JSON evidence is included. No fixes or dependency upgrades were applied.

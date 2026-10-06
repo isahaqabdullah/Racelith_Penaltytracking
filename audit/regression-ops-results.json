@@ -1,0 +1,55 @@
+[
+  {
+    "name": "/api/health reports database outage",
+    "status": "PASS",
+    "evidence": {
+      "status": 503,
+      "body": {
+        "status": "unavailable"
+      }
+    }
+  },
+  {
+    "name": "/api/ready reports database outage",
+    "status": "PASS",
+    "evidence": {
+      "status": 503,
+      "body": {
+        "status": "unavailable"
+      }
+    }
+  },
+  {
+    "name": "Liveness remains available during DB outage",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Outage errors remain generic",
+    "status": "PASS",
+    "evidence": {
+      "status": 503,
+      "body": {
+        "detail": "Database operation failed. Please retry or load a valid session."
+      }
+    }
+  },
+  {
+    "name": "Database readiness recovers",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Database recovery preserves session and records",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "API restart restores active session and every record",
+    "status": "PASS",
+    "evidence": {
+      "session": "Large Popup 1791289203260",
+      "records": 1005
+    }
+  }
+]

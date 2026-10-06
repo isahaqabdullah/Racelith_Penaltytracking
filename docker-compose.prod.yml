@@ -1,15 +1,10 @@
 # Production Docker Compose override
 # Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-version: '3.8'
-
 services:
   db:
     # Don't expose database port in production (remove ports or use internal network only)
-    ports: []
-    # Or use specific port binding to localhost only
-    # ports:
-    #   - "127.0.0.1:5432:5432"
+    ports: !reset []
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}  # Must be set in .env
     # Add backup volume
@@ -21,8 +16,8 @@ services:
     environment:
       ENVIRONMENT: production
       CORS_ORIGINS: ${CORS_ORIGINS}  # Must be set in .env
-    # Remove development volume mounts in production
-    volumes:
+    # Replace inherited development mounts (Compose 2.24.4+).
+    volumes: !override
       - ./backend/session_exports:/app/session_exports:rw
     # Add logging configuration
     logging:

@@ -12,11 +12,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency list and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Ensure python-dotenv is installed (for .env file support)
-RUN pip install python-dotenv
+COPY requirements.txt requirements.lock ./
+RUN pip install --no-cache-dir pip==26.2.1 && pip install --no-cache-dir -r requirements.lock
 
 # Copy wait script and make it executable
 COPY wait-for-db.sh /usr/local/bin/wait-for-db.sh

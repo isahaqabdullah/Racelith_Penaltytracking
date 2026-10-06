@@ -1,0 +1,399 @@
+[
+  {
+    "name": "Reject writes without active session",
+    "status": "FAIL",
+    "evidence": {
+      "status": 200,
+      "record": {
+        "id": 1,
+        "kart_number": 1,
+        "turn_number": null,
+        "description": "",
+        "observer": null,
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T16:42:38.751023+05:30"
+      }
+    }
+  },
+  {
+    "name": "Create session",
+    "status": "PASS",
+    "evidence": {
+      "status": 200,
+      "response": {
+        "status": "Session started",
+        "session": {
+          "name": "Audit Main"
+        }
+      }
+    }
+  },
+  {
+    "name": "Configuration requires authorization and restricts origin",
+    "status": "FAIL",
+    "evidence": {
+      "status": 200,
+      "response": {
+        "warning_expiry_minutes": 181,
+        "message": "Configuration updated successfully"
+      },
+      "cors": "*"
+    }
+  },
+  {
+    "name": "Three warnings trigger penalty and fourth resets cycle",
+    "status": "PASS",
+    "evidence": [
+      [
+        1,
+        "No"
+      ],
+      [
+        2,
+        "No"
+      ],
+      [
+        3,
+        "Yes"
+      ],
+      [
+        1,
+        "No"
+      ]
+    ]
+  },
+  {
+    "name": "Apply individual penalty",
+    "status": "PASS",
+    "evidence": {
+      "status": 200,
+      "response": {
+        "kart_number": 42,
+        "status": "Individual penalty applied",
+        "infringement_id": 3,
+        "penalty_description": "5 sec Stop & Go"
+      }
+    }
+  },
+  {
+    "name": "Reject repeated apply",
+    "status": "PASS",
+    "evidence": "second request"
+  },
+  {
+    "name": "White-line edit preserves chosen penalty",
+    "status": "FAIL",
+    "evidence": {
+      "before": {
+        "id": 5,
+        "kart_number": 43,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Audit",
+        "warning_count": 1,
+        "penalty_due": "Yes",
+        "penalty_description": "10 Sec",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T16:42:38.846197+05:30"
+      },
+      "after": {
+        "id": 5,
+        "kart_number": 43,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Edited observer",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T16:42:38.846197+05:30"
+      }
+    }
+  },
+  {
+    "name": "Yellow-zone edit preserves chosen penalty",
+    "status": "FAIL",
+    "evidence": {
+      "before": {
+        "id": 6,
+        "kart_number": 44,
+        "turn_number": null,
+        "description": "Yellow Zone Infringement",
+        "observer": "Audit",
+        "warning_count": 1,
+        "penalty_due": "Yes",
+        "penalty_description": "10 Sec",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T16:42:38.855770+05:30"
+      },
+      "after": {
+        "id": 6,
+        "kart_number": 44,
+        "turn_number": null,
+        "description": "Yellow Zone Infringement",
+        "observer": "Edited observer",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T16:42:38.855770+05:30"
+      }
+    }
+  },
+  {
+    "name": "Editing served penalty does not make it pending again",
+    "status": "FAIL",
+    "evidence": {
+      "after": {
+        "id": 7,
+        "kart_number": 45,
+        "turn_number": null,
+        "description": "Contact",
+        "observer": "Edited observer",
+        "warning_count": 1,
+        "penalty_due": "Yes",
+        "penalty_description": "10 Sec",
+        "penalty_taken": "2026-10-06T16:42:38.867161+05:30",
+        "timestamp": "2026-10-06T16:42:38.863264+05:30"
+      },
+      "pending_ids": [
+        7
+      ]
+    }
+  },
+  {
+    "name": "Deleting warning recalculates dependent penalty",
+    "status": "FAIL",
+    "evidence": [
+      {
+        "id": 10,
+        "kart_number": 46,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Audit",
+        "warning_count": 3,
+        "penalty_due": "Yes",
+        "penalty_description": "5 sec Stop & Go",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T11:12:38.885148Z"
+      },
+      {
+        "id": 9,
+        "kart_number": 46,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Audit",
+        "warning_count": 2,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T11:12:38.880858Z"
+      }
+    ]
+  },
+  {
+    "name": "Deleted record audit retained",
+    "status": "FAIL",
+    "evidence": [
+      {
+        "id": 15,
+        "infringement_id": 10,
+        "action": "created",
+        "performed_by": "System",
+        "observer": "Audit",
+        "details": "White Line Infringement | warning_count=3 | penalty_due=Yes | penalty_description=5 sec Stop & Go",
+        "timestamp": "2026-10-06T16:42:38.885148+05:30"
+      },
+      {
+        "id": 14,
+        "infringement_id": 9,
+        "action": "created",
+        "performed_by": "System",
+        "observer": "Audit",
+        "details": "White Line Infringement | warning_count=2 | penalty_due=No | penalty_description=Warning",
+        "timestamp": "2026-10-06T16:42:38.880858+05:30"
+      }
+    ]
+  },
+  {
+    "name": "Reject negative kart and forged attribution",
+    "status": "FAIL",
+    "evidence": {
+      "status": 200,
+      "record": {
+        "id": 11,
+        "kart_number": -99,
+        "turn_number": null,
+        "description": "Contact",
+        "observer": "Audit",
+        "warning_count": 1,
+        "penalty_due": "Yes",
+        "penalty_description": "10 Sec",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T16:42:38.901232+05:30"
+      }
+    }
+  },
+  {
+    "name": "Future warning does not count toward current event",
+    "status": "FAIL",
+    "evidence": {
+      "future": {
+        "id": 12,
+        "kart_number": 47,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Audit",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-11-05T16:42:38.903793+05:30"
+      },
+      "present": {
+        "id": 13,
+        "kart_number": 47,
+        "turn_number": null,
+        "description": "White Line Infringement",
+        "observer": "Audit",
+        "warning_count": 2,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T16:42:38.909800+05:30"
+      }
+    }
+  },
+  {
+    "name": "Excel export keeps user values as text",
+    "status": "FAIL",
+    "evidence": [
+      {
+        "sheet": "Infringements",
+        "cell": "D8",
+        "value": "=1+1",
+        "type": "f"
+      }
+    ]
+  },
+  {
+    "name": "CSV export neutralizes formulas",
+    "status": "FAIL",
+    "evidence": "raw formula in exported CSV"
+  },
+  {
+    "name": "JSON export includes records",
+    "status": "PASS",
+    "evidence": {
+      "status": 200,
+      "count": 13
+    }
+  },
+  {
+    "name": "Excel import round trip",
+    "status": "FAIL",
+    "evidence": {
+      "status": 200,
+      "response": {
+        "status": "Session 'Audit Imported' imported successfully",
+        "session_name": "Audit Imported",
+        "imported": {
+          "infringements": 12,
+          "history": 17
+        }
+      }
+    }
+  },
+  {
+    "name": "CSV import round trip",
+    "status": "PASS",
+    "evidence": {
+      "status": 200,
+      "response": {
+        "status": "Session 'Audit CSV' imported successfully",
+        "session_name": "Audit CSV",
+        "imported": {
+          "infringements": 13,
+          "history": 18
+        }
+      }
+    }
+  },
+  {
+    "name": "Reject malformed spreadsheet upload",
+    "status": "PASS",
+    "evidence": {
+      "status": 400,
+      "response": {
+        "detail": "Failed to parse file: File is not a zip file"
+      }
+    }
+  },
+  {
+    "name": "Documented hyphenated session name accepted",
+    "status": "FAIL",
+    "evidence": {
+      "status": 500,
+      "response": {
+        "detail": "Failed to create session DB: (psycopg2.errors.SyntaxError) syntax error at or near \"-\"\nLINE 1: CREATE DATABASE race_day_2024-01-15_db;\n                                     ^\n\n[SQL: CREATE DATABASE race_day_2024-01-15_db;]\n(Background on this error at: https://sqlalche.me/e/20/f405)"
+      }
+    }
+  },
+  {
+    "name": "Load restores isolated session data",
+    "status": "PASS",
+    "evidence": "kart 99 remains in Audit Isolation"
+  },
+  {
+    "name": "Closed session rejects further writes",
+    "status": "FAIL",
+    "evidence": {
+      "status": 200,
+      "response": {
+        "id": 2,
+        "kart_number": 100,
+        "turn_number": null,
+        "description": "Contact",
+        "observer": "Audit",
+        "warning_count": 1,
+        "penalty_due": "No",
+        "penalty_description": "Warning",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T16:42:39.176362+05:30"
+      }
+    }
+  },
+  {
+    "name": "Case alias cannot destroy another named session",
+    "status": "FAIL",
+    "evidence": {
+      "status": 200,
+      "remaining_sessions": [
+        {
+          "name": "Audit Isolation",
+          "status": "active",
+          "started_at": "2026-10-06T11:12:39.156489+05:30"
+        },
+        {
+          "name": "Audit Imported",
+          "status": "closed",
+          "started_at": "2026-10-06T11:12:38.808344+05:30"
+        },
+        {
+          "name": "Audit CSV",
+          "status": "closed",
+          "started_at": "2026-10-06T11:12:38.808344+05:30"
+        },
+        {
+          "name": "Audit Main",
+          "status": "closed",
+          "started_at": "2026-10-06T11:12:38.808344+05:30"
+        }
+      ],
+      "read_after_delete": 400
+    }
+  }
+]

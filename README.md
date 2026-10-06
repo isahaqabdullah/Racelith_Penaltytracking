@@ -15,7 +15,7 @@ The system enables live tracking of infringements, penalties, and race sessions,
 - Session-based race event tracking (start, load, close, delete sessions)
 - Automated infringement logic with warning and penalty accumulation
 - Real-time WebSocket event updates to all connected dashboards
-- Role-based workflows for race control and officials
+- Race control workflows for officials (server authentication remains deferred)
 - Dockerized architecture for reproducible and scalable deployments
 
 ## Quick Start (Docker - One Command)
@@ -95,7 +95,7 @@ docker-compose down
 
 ## Production Readiness 
 
-This application is **production-ready** with the following features:
+The repository includes the following deployment features. Local regression checks do not establish production readiness; authentication and deployed-container verification remain outstanding:
 
 -  **Health checks** for all services
 -  **Database initialization** and waiting scripts
@@ -138,7 +138,7 @@ See `DEPLOYMENT.md` for detailed production deployment instructions.
 
 3. Install dependencies:
    ```bash
-   pip install -r requirements.txt
+   pip install -r requirements.lock
    ```
 
 4. Create `.env` file:
@@ -221,3 +221,13 @@ Full API documentation available at `/docs` when the backend is running.
 
 - Reduced manual penalty reconciliation time by approximately 70%
 - Established a reusable framework for future event automation at Dubai Kartdrome
+
+## October 2026 reliability fixes and verification
+
+The non-authentication fixes and repeated real-browser/API/database test results are documented in `audit/FIX_REPORT.txt`. Original pre-fix evidence remains in `audit/AUDIT_REPORT.txt`.
+
+Use Python 3.12 and install `backend/requirements.lock`; the backend now explicitly selects the installed psycopg2 driver. In `frontend`, run `npm ci`, `npm run typecheck`, and `npm run build` using the updated lockfile. Generated dependencies and builds are not the source of truth. Production Compose requires version 2.24.4 or newer for the explicit inherited-port and volume overrides.
+
+Existing session databases receive additive columns on first load. New sessions use independent database identifiers. Deleted incidents remain in the audit/export data; list views hide them. Correcting a warning rebuilds the affected warning cycle in event order, while penalties already served stay served and may require review.
+
+Run the regression scripts only against a disposable database with `RACELITH_AUDIT_DISPOSABLE=1`. They create sessions, modify data, and inject database failures. `regression_faults.py` also modifies the disposable cluster's template database; never run it on an event or shared PostgreSQL server.

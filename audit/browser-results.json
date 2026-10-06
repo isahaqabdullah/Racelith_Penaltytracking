@@ -1,0 +1,273 @@
+[
+  {
+    "name": "Create session through UI",
+    "status": "PASS",
+    "evidence": "Browser Audit 1791285478795"
+  },
+  {
+    "name": "Dashboard renders and WebSocket connects",
+    "status": "PASS",
+    "evidence": "RACELITH\nPenalty Tracking System\nLive\n\nActive Session\n\nBrowser Audit 1791285478795\n\nExpiry\nQualifying: OFF\n← Back to Sessions\nLog Infringement\nKart Number\nTurn Number\nObserver\nInfringement\nPenalty Description\nLog Infringement\nPending Penalties\n\nPenalties requiring action\n\nTime\tKart #\tAction\tInfringement\tPenalty\nNo pending penalties\nRecent Infringements\nAll Entries\nEntries:\n300\nPage\n1\nof\n1\nSearch by Kart Number\nTime\tKart #\tTurn\tInfringement\tPenalty\tObserver\tStatus\tActions\nNo infringements logged yet\nShowing 1 to 0 of 0 entries\nSession created successfully\nSession \"Browser Audit 1791285478795\" has been created and activated."
+  },
+  {
+    "name": "Multi-kart form writes both records",
+    "status": "PASS",
+    "evidence": [
+      {
+        "id": 1,
+        "kart_number": 71,
+        "turn_number": "Browser Audit",
+        "description": "Contact",
+        "observer": "Browser Audit",
+        "warning_count": 1,
+        "penalty_due": "Yes",
+        "penalty_description": "10 Sec",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T11:17:59.797000Z"
+      },
+      {
+        "id": 2,
+        "kart_number": 72,
+        "turn_number": "Browser Audit",
+        "description": "Contact",
+        "observer": "Browser Audit",
+        "warning_count": 1,
+        "penalty_due": "Yes",
+        "penalty_description": "10 Sec",
+        "penalty_taken": null,
+        "timestamp": "2026-10-06T11:17:59.797000Z"
+      }
+    ]
+  },
+  {
+    "name": "Observer input does not overwrite turn number",
+    "status": "FAIL",
+    "evidence": [
+      {
+        "kart": 71,
+        "turn": "Browser Audit",
+        "observer": "Browser Audit"
+      },
+      {
+        "kart": 72,
+        "turn": "Browser Audit",
+        "observer": "Browser Audit"
+      }
+    ]
+  },
+  {
+    "name": "Second browser updates live",
+    "status": "PASS",
+    "evidence": "RACELITH\nPenalty Tracking System\nLive\n\nActive Session\n\nBrowser Audit 1791285478795\n\nExpiry\nQualifying: OFF\n← Back to Sessions\nLog Infringement\nKart Number\nTurn Number\nObserver\nInfringement\nPenalty Description\nLog Infringement\nPending Penalties\n\nPenalties requiring action\n\nTime\tKart #\tAction\tInfringement\tPenalty\n15:18:02\t73\t\nApply Penalty\n\tWhite Line Infringement\t5 sec Stop & Go\n15:17:59\t71\t\nApply Penalty\n\tContact\t10 Sec\n15:17:59\t72\t\nApply Penalty\n\tContact\t10 Sec\nRecent Infringements\nAll Entries\nEntries:\n300\nPage\n1\nof\n1\nSearch by Kart Number\nTime\tKart #\tTurn\tInfringement\tPenalty\tObserver\tStatus\tActions\n15:18:02\t73\tBrowser Audit\tWhite Line Infringement\t5 sec Stop & Go\tBrowser Audit\t\nPending\n\t\n\n15:18:01\t73\tBrowser Audit\tWhite Line Infringement\tWarning\tBrowser Audit\t\nWarning\n\t\n\n15:18:01\t73\tBrowser Audit\tWhite Line Infringement\tWarning\tBrowser Audit\t\nWarning\n\t\n\n15:17:59\t71\tBrowser Audit\tContact\t10 Sec\tBrowser Audit\t\nPending\n\t\n\n15:17:59\t72\tBrowser Audit\tContact\t10 Sec\tBrowser Audit\t\nPending\n\t\nShowing 1 to 5 of 5 entries"
+  },
+  {
+    "name": "UI warnings create pending penalty",
+    "status": "PASS",
+    "evidence": [
+      {
+        "id": 1,
+        "kart_number": 71,
+        "description": "Contact",
+        "penalty_description": "10 Sec",
+        "timestamp": "2026-10-06T16:47:59.797000+05:30",
+        "observer": "Browser Audit"
+      },
+      {
+        "id": 2,
+        "kart_number": 72,
+        "description": "Contact",
+        "penalty_description": "10 Sec",
+        "timestamp": "2026-10-06T16:47:59.797000+05:30",
+        "observer": "Browser Audit"
+      },
+      {
+        "id": 5,
+        "kart_number": 73,
+        "description": "White Line Infringement",
+        "penalty_description": "5 sec Stop & Go",
+        "timestamp": "2026-10-06T16:48:02.025000+05:30",
+        "observer": "Browser Audit"
+      }
+    ]
+  },
+  {
+    "name": "UI applies individual penalty",
+    "status": "PASS",
+    "evidence": [
+      {
+        "id": 1,
+        "kart_number": 71,
+        "description": "Contact",
+        "penalty_description": "10 Sec",
+        "timestamp": "2026-10-06T16:47:59.797000+05:30",
+        "observer": "Browser Audit"
+      },
+      {
+        "id": 2,
+        "kart_number": 72,
+        "description": "Contact",
+        "penalty_description": "10 Sec",
+        "timestamp": "2026-10-06T16:47:59.797000+05:30",
+        "observer": "Browser Audit"
+      }
+    ]
+  },
+  {
+    "name": "Qualifying form assigns fastest lap invalidation",
+    "status": "PASS",
+    "evidence": {
+      "id": 6,
+      "kart_number": 74,
+      "turn_number": "Browser Audit",
+      "description": "White Line Infringement",
+      "observer": "Browser Audit",
+      "warning_count": 1,
+      "penalty_due": "Yes",
+      "penalty_description": "Fastest Lap Invalidation",
+      "penalty_taken": null,
+      "timestamp": "2026-10-06T11:18:03.265000Z"
+    }
+  },
+  {
+    "name": "Expanded log renders records",
+    "status": "PASS",
+    "evidence": "Recent Infringements\nAll Entries\nWarning Flag\nPenalties\nTIME\tKART #\tTURN\tINFRINGEMENT\tPENALTY\tOBSERVER\tSTATUS\tACTIONS\n15:18:03\t74\tBrowser Audit\tWhite Line Infringement\tFastest Lap Invalidation\tBrowser Audit\t\nPending\n\t\n\n15:18:02\t73\tBrowser Audit\tWhite Line Infringement\t5 sec Stop & Go\tBrowser Audit\t\nApplied\n\t\n\n15:18:01\t73\tBrowser Audit\tWhite Line Infringement\tWarning\tBrowser Audit\t\nWarning\n\t\n\n15:18:01\t73\tBrowser Audit\tWhite Line Infringement\tWarning\tBrowser Audit\t\nWarning\n\t\n\n15:17:59\t71\tBrowser Audit\tContact\t10 Sec\tBrowser Audit\t\nPending\n\t\n\n15:17:59\t72\tBrowser Audit\tContact\t10 Sec\tBrowser Audit\t\nPending\n\t"
+  },
+  {
+    "name": "Cross-origin popup messages cannot delete records",
+    "status": "FAIL",
+    "evidence": {
+      "attackerOrigin": "http://localhost:3000",
+      "victimId": 2,
+      "exists": false
+    }
+  },
+  {
+    "name": "Failed submission retains form draft",
+    "status": "FAIL",
+    "evidence": {
+      "kart": "",
+      "errorVisible": true
+    }
+  },
+  {
+    "name": "Kart search finds records beyond current page",
+    "status": "FAIL",
+    "evidence": {
+      "kart": 71,
+      "existsInDatabase": true,
+      "visible": "No infringements found for kart #71"
+    }
+  },
+  {
+    "name": "Live update respects selected page and page size",
+    "status": "FAIL",
+    "evidence": {
+      "before": "15:18:06\t2005\t—\tContact\tWarning\tPagination audit\t\nWarning\n\t",
+      "after": "15:18:08\t9999\t—\tContact\tWarning\t—\t\nWarning\n\t",
+      "footer": "Showing 101 to 116 of 116 entries",
+      "page": "Page\n2\nof\n1",
+      "rowCount": 116
+    }
+  },
+  {
+    "name": "UI export fallback downloads workbook",
+    "status": "PASS",
+    "evidence": {
+      "filename": "Browser Audit 1791285478795_2026-10-06.xlsx",
+      "bytes": 16101
+    }
+  },
+  {
+    "name": "UI imports CSV and navigates to imported session",
+    "status": "PASS",
+    "evidence": {
+      "name": "Browser Imported 1791285489475",
+      "sessions": [
+        {
+          "name": "Browser Audit 1791285478795",
+          "status": "closed",
+          "started_at": "2026-10-06T11:17:59.245842+05:30"
+        },
+        {
+          "name": "Audit Broken",
+          "status": "closed",
+          "started_at": "2026-10-06T11:16:57.751949+05:30"
+        },
+        {
+          "name": "Audit Failed Import",
+          "status": "closed",
+          "started_at": "2026-10-06T11:16:57.438150+05:30"
+        },
+        {
+          "name": "Audit Extended",
+          "status": "closed",
+          "started_at": "2026-10-06T11:16:57.438150+05:30"
+        },
+        {
+          "name": "Audit Blank Import",
+          "status": "closed",
+          "started_at": "2026-10-06T11:16:57.438150+05:30"
+        },
+        {
+          "name": "Browser Audit 1791285368795",
+          "status": "closed",
+          "started_at": "2026-10-06T11:16:09.240282+05:30"
+        },
+        {
+          "name": "Audit Browser",
+          "status": "closed",
+          "started_at": "2026-10-06T11:12:39.473500+05:30"
+        },
+        {
+          "name": "Audit Isolation",
+          "status": "closed",
+          "started_at": "2026-10-06T11:12:39.156489+05:30"
+        },
+        {
+          "name": "Browser Imported 1791285489475",
+          "status": "active",
+          "started_at": "2026-10-06T11:12:38.808344+05:30"
+        },
+        {
+          "name": "Audit CSV",
+          "status": "closed",
+          "started_at": "2026-10-06T11:12:38.808344+05:30"
+        },
+        {
+          "name": "Audit Main",
+          "status": "closed",
+          "started_at": "2026-10-06T11:12:38.808344+05:30"
+        },
+        {
+          "name": "Audit Imported",
+          "status": "closed",
+          "started_at": "2026-10-06T11:12:38.808344+05:30"
+        }
+      ]
+    }
+  },
+  {
+    "name": "UI loads existing session",
+    "status": "PASS",
+    "evidence": "Browser Audit 1791285478795"
+  },
+  {
+    "name": "UI deletes disposable session",
+    "status": "PASS",
+    "evidence": "Browser Imported 1791285489475"
+  },
+  {
+    "name": "Mobile page has no document horizontal overflow",
+    "status": "FAIL",
+    "evidence": {
+      "width": 390,
+      "scrollWidth": 489
+    }
+  },
+  {
+    "name": "No uncaught browser exceptions",
+    "status": "PASS",
+    "evidence": []
+  }
+]

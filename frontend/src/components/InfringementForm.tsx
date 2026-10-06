@@ -5,7 +5,7 @@ import { Label } from './ui/label';
 import { Combobox } from './ui/combobox';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import type { CreateInfringementPayload } from '../api';
+import { PartialSubmissionError, type CreateInfringementPayload } from '../api';
 
 const INFRINGEMENT_OPTIONS = [
   'White Line Infringement',
@@ -54,6 +54,7 @@ const DEFAULT_WARNING_TYPES = new Set([
 ]);
 
 interface InfringementFormProps {
+  sessionName: string | null;
   onSubmit: (payloads: CreateInfringementPayload[]) => Promise<void> | void;
   isQualifyingMode: boolean;
 }
@@ -108,7 +109,10 @@ const getKartTokenStyle = (token: string) => {
   };
 };
 
-export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFormProps) {
+export function InfringementForm({ onSubmit, isQualifyingMode, sessionName }: InfringementFormProps) {
+  const draftSession = useRef<string | null>(null);
+  const receipts = useRef<Map<string, string>>(new Map());
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [kartNumber, setKartNumber] = useState('');
   const [turn, setTurn] = useState('');
   const [observer, setObserver] = useState('');
@@ -126,8 +130,9 @@ export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFor
   );
 
   const ensureDraftTimestamp = useCallback(() => {
+    if (!draftSession.current) draftSession.current = sessionName;
     setDraftTimestamp((existing) => existing ?? new Date().toISOString());
-  }, []);
+  }, [sessionName]);
 
   const getAutoPenaltyForInfringement = useCallback(
     (infringementType: string): string | null => {
@@ -152,7 +157,6 @@ export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFor
 
   const handleTurnChange = (nextValue: string) => {
     setTurn(nextValue);
-    setObserver(nextValue);
     if (nextValue.trim() !== '') {
       ensureDraftTimestamp();
     }
@@ -160,7 +164,6 @@ export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFor
 
   const handleObserverChange = (nextValue: string) => {
     setObserver(nextValue);
-    setTurn(nextValue);
     if (nextValue.trim() !== '') {
       ensureDraftTimestamp();
     }
@@ -178,6 +181,7 @@ export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFor
 
     if (allFieldsEmpty) {
       setDraftTimestamp(null);
+      draftSession.current = null;
     }
   }, [kartNumber, turn, observer, infringement, penaltyDescription, secondKartNumber, lapNumber]);
 
@@ -247,7 +251,8 @@ export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFor
     const turnValue = turn.trim() === '' ? null : turn.trim();
     const observerValue = observer.trim() === '' ? null : observer.trim();
     const timestampToUse = draftTimestamp ?? new Date().toISOString();
-    const parsedKarts = kartTokens.map((token) => Number(token.value));
+    const parsedKarts = [...new Set(kartTokens.map((token) => Number(token.value)))];
+    if (parsedKarts.some(k => !Number.isInteger(k) || k < 1 || k > 2147483647)) { setSubmitError('Kart numbers must be whole numbers between 1 and 2147483647.'); return; }
 
     // Format description for "Advantage by Contact" or "Contact" with second kart number
     let finalDescription: string | null = infringement.trim() === '' ? null : infringement;
@@ -270,9 +275,16 @@ export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFor
 
     try {
       setIsSubmitting(true);
+      setSubmitError(null);
       await onSubmit(
         parsedKarts.map((parsedKart) => ({
           kart_number: parsedKart,
+          session_name: draftSession.current ?? sessionName,
+          request_id: (() => {
+            const key = JSON.stringify([draftSession.current, parsedKart, turnValue, finalDescription, observerValue, finalPenaltyDescription, timestampToUse]);
+            if (!receipts.current.has(key)) receipts.current.set(key, crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, '0')).join(''));
+            return receipts.current.get(key)!;
+          })(),
           turn_number: turnValue,
           description: finalDescription,
           observer: observerValue,
@@ -290,6 +302,11 @@ export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFor
       setSecondKartNumber('');
       setLapNumber('');
       setDraftTimestamp(null);
+      draftSession.current = null;
+      receipts.current.clear();
+    } catch (error) {
+      if (error instanceof PartialSubmissionError) setKartNumber(error.remaining.map(p => p.kart_number).join(' '));
+      setSubmitError(error instanceof Error ? error.message : 'Could not save. Your draft has been retained.');
     } finally {
       setIsSubmitting(false);
     }
@@ -302,6 +319,7 @@ export function InfringementForm({ onSubmit, isQualifyingMode }: InfringementFor
       </CardHeader>
       <CardContent className="pt-3 pb-6">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {submitError && <p role="alert" className="text-sm text-destructive">{submitError}</p>}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
               <Label htmlFor="kartNumber">Kart Number</Label>

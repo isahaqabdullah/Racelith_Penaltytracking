@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Incident and history roll back together",
+    "status": "PASS",
+    "evidence": {
+      "detail": "Database operation failed. Please retry or load a valid session."
+    }
+  },
+  {
+    "name": "Database errors do not leak SQL",
+    "status": "PASS",
+    "evidence": {
+      "detail": "Database operation failed. Please retry or load a valid session."
+    }
+  },
+  {
+    "name": "Legacy database loads with additive migration",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Legacy served penalty retained conservatively",
+    "status": "PASS",
+    "evidence": {
+      "id": 1,
+      "kart_number": 700,
+      "turn_number": null,
+      "description": "White Line Infringement",
+      "observer": "Corrected",
+      "warning_count": 1,
+      "penalty_due": "No",
+      "penalty_description": "5 sec Stop & Go",
+      "penalty_taken": "2026-10-06T17:50:39.429484+05:30",
+      "timestamp": "2026-10-06T17:50:39.429484+05:30",
+      "session_name": "Legacy 90700f80",
+      "penalty_origin": "manual",
+      "review_required": false
+    }
+  },
+  {
+    "name": "Legacy audit history retained and kart backfilled",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Staged database failure leaves no orphan",
+    "status": "PASS",
+    "evidence": {
+      "detail": "Database operation failed. Please retry or load a valid session."
+    }
+  },
+  {
+    "name": "Staged failure preserves active legacy session",
+    "status": "PASS",
+    "evidence": null
+  },
+  {
+    "name": "Production database publishes no ports",
+    "status": "PASS",
+    "evidence": []
+  }
+]

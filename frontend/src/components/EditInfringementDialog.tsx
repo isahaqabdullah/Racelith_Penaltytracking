@@ -71,12 +71,10 @@ export function EditInfringementDialog({
 
   const handleTurnChange = (nextValue: string) => {
     setTurn(nextValue);
-    setObserver(nextValue);
   };
 
   const handleObserverChange = (nextValue: string) => {
     setObserver(nextValue);
-    setTurn(nextValue);
   };
 
   // Update form values when infringement changes
@@ -88,16 +86,9 @@ export function EditInfringementDialog({
           ? ''
           : String(infringement.turn_number);
       const incomingObserver = infringement.observer ?? '';
-      let syncedTurn = incomingTurn;
-      let syncedObserver = incomingObserver;
-      if (syncedTurn.trim() === '' && syncedObserver.trim() !== '') {
-        syncedTurn = syncedObserver;
-      } else if (syncedObserver.trim() === '' && syncedTurn.trim() !== '') {
-        syncedObserver = syncedTurn;
-      }
-      setTurn(syncedTurn);
-      setObserver(syncedObserver);
-      
+      setTurn(incomingTurn);
+      setObserver(incomingObserver);
+
       // Parse description to extract infringement type and second kart number
       const description = infringement.description || '';
       let baseInfringementType = description;
@@ -164,6 +155,7 @@ export function EditInfringementDialog({
       finalPenaltyDescription = `Lap Invalidation - Lap ${lapNumber.trim()}`;
     }
 
+    try {
     await onSave(infringement.id, {
       kart_number: parsedKart,
       turn_number: turnValue,
@@ -173,6 +165,7 @@ export function EditInfringementDialog({
       performed_by: observerValue || null,
     });
     onOpenChange(false);
+    } catch { /* Parent displays the error; keep this dialog and draft open. */ }
   };
 
   const handleCancel = () => {

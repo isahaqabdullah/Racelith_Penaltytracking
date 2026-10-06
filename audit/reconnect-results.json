@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Main and expanded log refetch after socket reconnect",
+    "status": "PASS",
+    "evidence": {
+      "before": {
+        "mainGets": 2,
+        "popGets": 4
+      },
+      "after": {
+        "mainGets": 3,
+        "popGets": 6
+      }
+    }
+  },
+  {
+    "name": "Both views resume live updates after API restart",
+    "status": "PASS"
+  }
+]

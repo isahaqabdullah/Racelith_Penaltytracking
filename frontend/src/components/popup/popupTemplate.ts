@@ -5,8 +5,8 @@ import { popupStyles } from './popupStyles';
 import { popupHTML } from './popupHTML';
 import { generatePopupScript } from './popupScript';
 
-export function generatePopupHTML(apiBase: string, warningExpiryMinutes: number, serverTimeOffsetMs: number = 0): string {
-  const script = generatePopupScript(apiBase, warningExpiryMinutes, serverTimeOffsetMs);
+export function generatePopupHTML(apiBase: string, warningExpiryMinutes: number, serverTimeOffsetMs: number = 0, sessionName: string | null = null): string {
+  const script = generatePopupScript(apiBase, warningExpiryMinutes, serverTimeOffsetMs, sessionName);
   
   return `<!DOCTYPE html>
 <html>

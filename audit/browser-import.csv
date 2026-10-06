@@ -1,0 +1,42 @@
+Session Information
+Name,Browser Imported 1791285489475
+Status,active
+Started At (Local),2026-10-06T09:42:38.808344+04:00
+Started At (UTC),2026-10-06T11:12:38.808344+05:30
+
+Infringements
+ID,Kart Number,Turn Number,Description,Observer,Warning Count,Penalty Due,Penalty Description,Penalty Taken (Local),Penalty Taken (UTC),Timestamp (Local),Timestamp (UTC)
+12,47,,White Line Infringement,Audit,1,No,Warning,,,2026-11-05T15:12:38.903793+04:00,2026-11-05T16:42:38.903793+05:30
+14,48,,=1+1,Audit,1,No,Warning,,,2026-10-06T15:12:38.914114+04:00,2026-10-06T16:42:38.914114+05:30
+13,47,,White Line Infringement,Audit,2,No,Warning,,,2026-10-06T15:12:38.909800+04:00,2026-10-06T16:42:38.909800+05:30
+11,-99,,Contact,Audit,1,Yes,10 Sec,,,2026-10-06T15:12:38.901232+04:00,2026-10-06T16:42:38.901232+05:30
+10,46,,White Line Infringement,Audit,3,Yes,5 sec Stop & Go,,,2026-10-06T15:12:38.885148+04:00,2026-10-06T16:42:38.885148+05:30
+9,46,,White Line Infringement,Audit,2,No,Warning,,,2026-10-06T15:12:38.880858+04:00,2026-10-06T16:42:38.880858+05:30
+7,45,,Contact,Edited observer,1,Yes,10 Sec,2026-10-06T15:12:38.867161+04:00,2026-10-06T16:42:38.867161+05:30,2026-10-06T15:12:38.863264+04:00,2026-10-06T16:42:38.863264+05:30
+6,44,,Yellow Zone Infringement,Edited observer,1,No,Warning,,,2026-10-06T15:12:38.855770+04:00,2026-10-06T16:42:38.855770+05:30
+5,43,,White Line Infringement,Edited observer,1,No,Warning,,,2026-10-06T15:12:38.846197+04:00,2026-10-06T16:42:38.846197+05:30
+4,42,,White Line Infringement,Audit,1,No,Warning,,,2026-10-06T15:12:38.836099+04:00,2026-10-06T16:42:38.836099+05:30
+3,42,,White Line Infringement,Audit,0,No,5 sec Stop & Go,2026-10-06T15:12:38.841022+04:00,2026-10-06T16:42:38.841022+05:30,2026-10-06T15:12:38.831725+04:00,2026-10-06T16:42:38.831725+05:30
+2,42,,White Line Infringement,Audit,2,No,Warning,,,2026-10-06T15:12:38.827125+04:00,2026-10-06T16:42:38.827125+05:30
+1,42,,White Line Infringement,Audit,1,No,Warning,,,2026-10-06T15:12:38.819586+04:00,2026-10-06T16:42:38.819586+05:30
+
+Infringement History
+Infringement ID,Action,Performed By,Observer,Details,Timestamp (Local),Timestamp (UTC)
+12,created,System,Audit,White Line Infringement | warning_count=1 | penalty_due=No | penalty_description=Warning,2026-11-05T15:12:38.903793+04:00,2026-11-05T16:42:38.903793+05:30
+14,created,System,Audit,=1+1 | warning_count=1 | penalty_due=No | penalty_description=Warning,2026-10-06T15:12:38.914114+04:00,2026-10-06T16:42:38.914114+05:30
+13,created,System,Audit,White Line Infringement | warning_count=2 | penalty_due=No | penalty_description=Warning,2026-10-06T15:12:38.909800+04:00,2026-10-06T16:42:38.909800+05:30
+11,created,Impersonated administrator,Audit,Contact | warning_count=1 | penalty_due=Yes | penalty_description=10 Sec,2026-10-06T15:12:38.901232+04:00,2026-10-06T16:42:38.901232+05:30
+10,created,System,Audit,White Line Infringement | warning_count=3 | penalty_due=Yes | penalty_description=5 sec Stop & Go,2026-10-06T15:12:38.885148+04:00,2026-10-06T16:42:38.885148+05:30
+9,created,System,Audit,White Line Infringement | warning_count=2 | penalty_due=No | penalty_description=Warning,2026-10-06T15:12:38.880858+04:00,2026-10-06T16:42:38.880858+05:30
+7,updated,System,Edited observer,Updated infringement 7: Contact | warning_count=1 | penalty_due=Yes,2026-10-06T15:12:38.871944+04:00,2026-10-06T16:42:38.871944+05:30
+7,penalty_applied,Audit,,Individual penalty applied: 10 Sec,2026-10-06T15:12:38.867161+04:00,2026-10-06T16:42:38.867161+05:30
+7,created,System,Audit,Contact | warning_count=1 | penalty_due=Yes | penalty_description=10 Sec,2026-10-06T15:12:38.863264+04:00,2026-10-06T16:42:38.863264+05:30
+6,updated,System,Edited observer,Updated infringement 6: Yellow Zone Infringement | warning_count=1 | penalty_due=No,2026-10-06T15:12:38.861040+04:00,2026-10-06T16:42:38.861040+05:30
+6,created,System,Audit,Yellow Zone Infringement | warning_count=1 | penalty_due=Yes | penalty_description=10 Sec,2026-10-06T15:12:38.855770+04:00,2026-10-06T16:42:38.855770+05:30
+5,updated,System,Edited observer,Updated infringement 5: White Line Infringement | warning_count=1 | penalty_due=No,2026-10-06T15:12:38.853464+04:00,2026-10-06T16:42:38.853464+05:30
+5,created,System,Audit,White Line Infringement | warning_count=1 | penalty_due=Yes | penalty_description=10 Sec,2026-10-06T15:12:38.846197+04:00,2026-10-06T16:42:38.846197+05:30
+4,created,System,Audit,White Line Infringement | warning_count=1 | penalty_due=No | penalty_description=Warning,2026-10-06T15:12:38.836099+04:00,2026-10-06T16:42:38.836099+05:30
+3,penalty_applied,Audit,,Individual penalty applied: 5 sec Stop & Go,2026-10-06T15:12:38.841022+04:00,2026-10-06T16:42:38.841022+05:30
+3,created,System,Audit,White Line Infringement | warning_count=3 | penalty_due=Yes | penalty_description=5 sec Stop & Go,2026-10-06T15:12:38.831725+04:00,2026-10-06T16:42:38.831725+05:30
+2,created,System,Audit,White Line Infringement | warning_count=2 | penalty_due=No | penalty_description=Warning,2026-10-06T15:12:38.827125+04:00,2026-10-06T16:42:38.827125+05:30
+1,created,System,Audit,White Line Infringement | warning_count=1 | penalty_due=No | penalty_description=Warning,2026-10-06T15:12:38.819586+04:00,2026-10-06T16:42:38.819586+05:30

@@ -22,6 +22,8 @@ import { AlertCircle, Wifi, WifiOff, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   API_BASE,
+  setRequestSession,
+  PartialSubmissionError,
   applyIndividualPenalty,
   createInfringement,
   deleteInfringement,
@@ -67,6 +69,8 @@ export default function App() {
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState<boolean>(false);
   const [passwordInput, setPasswordInput] = useState<string>('');
+  const [searchKart, setSearchKart] = useState('');
+  const loadGeneration = useRef(0);
   const [paginationPage, setPaginationPage] = useState<number>(1);
   const [paginationLimit, setPaginationLimit] = useState<number>(300);
   const [paginationTotal, setPaginationTotal] = useState<number>(0);
@@ -93,15 +97,15 @@ export default function App() {
     fetchConfig();
   }, []);
 
-  const checkActiveSession = useCallback(async () => {
+  const checkActiveSession = useCallback(async (generation?: number) => {
     try {
       const response = await listSessions();
       const activeSession = response.sessions.find((s) => s.status === 'active');
       const hasActive = !!activeSession;
+      if (generation !== undefined && generation !== loadGeneration.current) return { hasActive, sessionName: activeSession?.name ?? null };
       setHasActiveSession(hasActive);
-      if (activeSession) {
-        setActiveSessionName(activeSession.name);
-      }
+      setRequestSession(activeSession?.name ?? null);
+      setActiveSessionName(activeSession?.name ?? null);
       return { hasActive, sessionName: activeSession?.name || null };
     } catch (error) {
       console.error('Failed to check active session', error);
@@ -125,9 +129,11 @@ export default function App() {
         setIsLoading(true);
         setLoadError(null);
       }
+      const generation = ++loadGeneration.current;
       try {
         // First check if there's an active session
-        const { hasActive } = await checkActiveSession();
+        const { hasActive } = await checkActiveSession(generation);
+        if (generation !== loadGeneration.current) return;
         
         if (!hasActive) {
           setHasActiveSession(false);
@@ -142,9 +148,11 @@ export default function App() {
 
         setHasActiveSession(true);
         const [infringementData, pendingData] = await Promise.all([
-          fetchInfringements(paginationPage, paginationLimit),
+          fetchInfringements(paginationPage, paginationLimit, searchKart),
           fetchPendingPenalties(),
         ]);
+        if (generation !== loadGeneration.current) return;
+        if (infringementData.page !== paginationPage) setPaginationPage(infringementData.page);
         if (infringementData.server_time_utc) {
           setServerTimeOffsetMs(new Date(infringementData.server_time_utc).getTime() - Date.now());
         }
@@ -154,6 +162,7 @@ export default function App() {
         setPendingPenalties(pendingData);
         setLoadError(null);
       } catch (error: any) {
+        if (generation !== loadGeneration.current) return;
         console.error('Failed to load data', error);
         const errorMessage = error?.message || 'Failed to load data from server';
         setLoadError(errorMessage);
@@ -170,12 +179,10 @@ export default function App() {
           });
         }
       } finally {
-        if (withSpinner) {
-          setIsLoading(false);
-        }
+        if (generation === loadGeneration.current) setIsLoading(false);
       }
     },
-    [checkActiveSession, paginationPage, paginationLimit]
+    [checkActiveSession, paginationPage, paginationLimit, searchKart]
   );
 
   // Check for active session on mount and navigate if exists
@@ -197,6 +204,9 @@ export default function App() {
       void loadData();
     }
   }, [currentView, loadData]);
+
+  const latestLoadData = useRef(loadData);
+  latestLoadData.current = loadData;
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -220,9 +230,10 @@ export default function App() {
         'session_deleted',
         'session_imported',
       ]);
+      if (message?.type === 'connected') void latestLoadData.current(false);
       if (message?.type && relevantTypes.has(message.type)) {
         // Use loadData from closure - don't include in dependencies to prevent reconnections
-        void loadData(false);
+        void latestLoadData.current(false);
       }
       if (message?.type === 'config_updated') {
         const nextExpiry = Number(message.data?.warning_expiry_minutes);
@@ -256,6 +267,7 @@ export default function App() {
   // Listen for messages from popup windows (for edit/delete actions)
   useEffect(() => {
     const handleMessage = async (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== popupWindowRef.current) return;
       if (event.data?.type === 'editInfringement') {
         const infringement = infringements.find(inf => inf.id === event.data.id);
         if (infringement) {
@@ -266,22 +278,8 @@ export default function App() {
         // Popup updated an infringement, reload data to reflect changes
         await loadData(false);
       } else if (event.data?.type === 'deleteInfringement') {
-        try {
-          await deleteInfringement(event.data.id);
-          setInfringements((prev) => prev.filter((inf) => inf.id !== event.data.id));
-          setPendingPenalties((prev) => prev.filter((penalty) => penalty.id !== event.data.id));
-          toast.success('Infringement deleted successfully');
-          await loadData(false);
-          // Notify popup window (though it will also get WebSocket update)
-          if (popupWindowRef.current && !popupWindowRef.current.closed) {
-            popupWindowRef.current.postMessage({ type: 'updateInfringements' }, '*');
-          }
-        } catch (error: any) {
-          console.error('Failed to delete infringement', error);
-          toast.error('Error Deleting Infringement', {
-            description: error?.message || 'Failed to delete infringement',
-          });
-        }
+        // The popup performed its own deletion; refresh without deleting twice.
+        await loadData(false);
       }
     };
 
@@ -292,43 +290,33 @@ export default function App() {
   }, [infringements, loadData, deleteInfringement]);
 
   const handleNewInfringement = async (payloads: CreateInfringementPayload[]) => {
-    try {
-      for (const payload of payloads) {
-        await createInfringement({
-          ...payload,
-          performed_by: payload.performed_by || DEFAULT_PERFORMED_BY,
-        });
-      }
-      // Go to page 1 to show new infringement (newest appear first)
-      setPaginationPage(1);
-      // Reload data to show new infringement
-      await loadData(false);
-      const pending = await fetchPendingPenalties();
-      setPendingPenalties(pending);
-      toast.success(
-        payloads.length > 1
-          ? `${payloads.length} infringements created successfully`
-          : 'Infringement created successfully'
-      );
-      // Notify popup window
-      if (popupWindowRef.current && !popupWindowRef.current.closed) {
-        popupWindowRef.current.postMessage({ type: 'updateInfringements' }, '*');
-      }
-    } catch (error: any) {
-      console.error('Failed to create infringement', error);
-      const errorMessage = error?.message || 'Failed to create infringement';
-      toast.error('Error Creating Infringement', {
-        description: errorMessage.includes('relation') || errorMessage.includes('does not exist')
-          ? 'No active session. Please create or load a session first.'
-          : errorMessage,
-      });
+    const remaining: CreateInfringementPayload[] = [];
+    let saved = 0;
+    let lastError = '';
+    for (const payload of payloads) {
+      try {
+        await createInfringement({ ...payload, session_name: payload.session_name ?? activeSessionNameRef.current,
+          performed_by: payload.performed_by || DEFAULT_PERFORMED_BY });
+        saved++;
+      } catch (error: any) { remaining.push(payload); lastError = error?.message || 'Save failed'; }
     }
+    if (saved) {
+      setPaginationPage(1);
+      await latestLoadData.current(false);
+    }
+    if (remaining.length) {
+      const message = `${saved} saved; ${remaining.length} not saved. ${lastError}`;
+      toast.error('Could not save all infringements', { description: message });
+      throw new PartialSubmissionError(message, remaining);
+    }
+    toast.success(`${saved} infringement${saved === 1 ? '' : 's'} saved`);
   };
 
   const handleApplyPenalty = async (id: number) => {
     try {
       setIsApplyingPenalty(true);
-      await applyIndividualPenalty(id, DEFAULT_PERFORMED_BY);
+      const pending = pendingPenalties.find(p => p.id === id);
+      await applyIndividualPenalty(id, DEFAULT_PERFORMED_BY, pending?.session_name || activeSessionName || undefined);
       await loadData();
       toast.success('Penalty applied successfully');
       // Notify popup window
@@ -355,6 +343,7 @@ export default function App() {
       setIsSavingEdit(true);
       const updated = await updateInfringementApi(id, {
         ...payload,
+        session_name: editingInfringement?.session_name ?? activeSessionNameRef.current,
         performed_by: payload.performed_by || DEFAULT_PERFORMED_BY,
       });
     setInfringements((prev) =>
@@ -362,6 +351,7 @@ export default function App() {
       );
       const pending = await fetchPendingPenalties();
       setPendingPenalties(pending);
+      await latestLoadData.current(false);
       toast.success('Infringement updated successfully');
       // Notify popup window
       if (popupWindowRef.current && !popupWindowRef.current.closed) {
@@ -372,6 +362,7 @@ export default function App() {
       toast.error('Error Updating Infringement', {
         description: error?.message || 'Failed to update infringement',
       });
+      throw error;
     } finally {
       setIsSavingEdit(false);
     }
@@ -384,9 +375,10 @@ export default function App() {
     }
 
     try {
-      await deleteInfringement(id);
+      await deleteInfringement(id, infringements.find(i => i.id === id)?.session_name);
       setInfringements((prev) => prev.filter((inf) => inf.id !== id));
       setPendingPenalties((prev) => prev.filter((penalty) => penalty.id !== id));
+      await latestLoadData.current(false);
       toast.success('Infringement deleted successfully');
       // Notify popup window
       if (popupWindowRef.current && !popupWindowRef.current.closed) {
@@ -492,12 +484,12 @@ export default function App() {
       <header className="border-b relative overflow-hidden bg-background">
         <CheckeredFlag />
         <div className="container mx-auto px-4 py-4 relative z-10">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="relative z-20">
               <RacelithLogo variant="dark" size="sm" />
             </div>
             {currentView === 'penalty-logging' && activeSessionName && (
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <div className="flex items-center gap-2" title={wsConnected ? 'WebSocket connected' : 'WebSocket disconnected'}>
                   {wsConnected ? (
                     <Wifi className="h-4 w-4 text-green-500" />
@@ -512,7 +504,7 @@ export default function App() {
                   <p className="text-sm text-muted-foreground">Active Session</p>
                   <p className="font-semibold">{activeSessionName}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Settings className="h-4 w-4 text-muted-foreground" />
                     <Label htmlFor="expiry-toggle" className="text-xs text-muted-foreground cursor-pointer">
@@ -605,6 +597,7 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[1fr_1.4fr] gap-6">
             <div className="min-h-0">
               <InfringementForm
+                sessionName={activeSessionName}
                 onSubmit={handleNewInfringement}
                 isQualifyingMode={isQualifyingMode}
               />
@@ -619,7 +612,10 @@ export default function App() {
           </div>
 
           <InfringementLog 
-            infringements={infringements} 
+            infringements={infringements}
+            sessionName={activeSessionName}
+            searchKartNumber={searchKart}
+            onSearchChange={(value) => { setSearchKart(value); setPaginationPage(1); }}
             onEdit={handleEditInfringement}
             onDelete={handleDeleteInfringement}
             warningExpiryMinutes={warningExpiryMinutes}
