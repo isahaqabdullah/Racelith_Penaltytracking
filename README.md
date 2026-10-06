@@ -1,212 +1,112 @@
 # Racelith Penalty Tracking System
 
-Race control app for managing karting sessions, infringements, warnings, penalties and audit history. The app uses React, FastAPI and PostgreSQL, with live updates between dashboards.
+An app for managing karting sessions, infringements, warnings, penalties and audit history, with live dashboard updates.
 
-## Do I need a separate Docker image?
+## Run the application
 
-No manual image build or Docker Hub upload is needed. The repository already includes the backend and frontend Dockerfiles. The startup command below builds those images on your computer, downloads the PostgreSQL image, and starts all three services. The first run needs an internet connection and takes longer while dependencies download.
+The original `backend/.env` is included and already configured. **No environment-file setup or editing is required for the supplied Docker setup.**
 
-Docker must be installed and running on the computer hosting the app. Anyone using the app from a browser does not need Docker, Python or Node.js installed. See [Docker's startup documentation](https://docs.docker.com/reference/cli/docker/compose/up/) for what `up --build` does.
+1. Install and open Docker Desktop (or start Docker Engine on Linux).
+2. Open a terminal in this project folder, where `docker-compose.yml` is located.
+3. Build and start the application with one command:
 
-## Run with Docker (recommended)
+   ```bash
+   docker compose up --build -d
+   ```
 
-### 1. Install and start Docker
+4. Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
-Use Docker Desktop on macOS or Windows, or Docker Engine with the Compose plugin on Linux. Start Docker before continuing. Use **Docker Compose 2.24.4 or newer**; the override file uses syntax that removes the inherited database port mapping.
+The first build takes longer because Docker downloads dependencies. Allow the services time to become healthy after starting. Create a session with **New Session**, or load an existing session, before logging infringements.
 
-Check your installation:
-
-```bash
-docker --version
-docker compose version
-```
-
-Ports **3000** and **8000** must be available. PostgreSQL stays inside Docker with the startup command below, so this setup does not need host port 5432.
-
-### 2. Open the project folder
-
-For a new checkout:
+If you prefer to build and start separately, the equivalent commands are:
 
 ```bash
-git clone https://github.com/isahaqabdullah/Racelith_Penaltytracking.git
-cd Racelith_Penaltytracking
+docker compose build
+docker compose up -d
 ```
 
-For an existing checkout, open a terminal in the folder containing this README and `docker-compose.yml`. Keep your existing environment file and database credentials.
+### Do I need to make a separate Docker image?
 
-### 3. Configure the environment
+No. Compose builds the frontend and backend images from the Dockerfiles already in the repository and downloads the PostgreSQL image. It then runs all three containers. You do not need to upload anything to Docker Hub or install Python, Node.js or PostgreSQL separately.
 
-Copy `backend/.env.example` to `backend/.env` **if that file does not already exist**. On macOS/Linux or Windows Git Bash:
+Use **`docker compose build`**, rather than `docker build`, to build the whole application. `docker build` builds one image and does not start containers. [Docker documents the build-and-start option here](https://docs.docker.com/reference/cli/docker/compose/up/).
+
+The browser uses port **3000** and the API uses port **8000**. PostgreSQL stays inside Docker and does not occupy a host port.
+
+## Stop and start again
+
+Stop the application:
 
 ```bash
-cp -n backend/.env.example backend/.env
+docker compose down
 ```
 
-In Windows PowerShell, use:
-
-```powershell
-if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
-```
-
-Open `backend/.env` in a text editor. On a new installation, replace `replace_this_with_a_long_random_password` with a password containing letters and numbers. The template's `DATABASE_URL` references `POSTGRES_PASSWORD`, so those values stay in sync. Existing installations should keep the credentials their database already uses.
-
-Keep these values for local use:
-
-```dotenv
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
-VITE_API_BASE=http://localhost:8000
-FRONTEND_PORT=3000
-BACKEND_PORT=8000
-```
-
-Use `--env-file backend/.env` in the commands below. This supplies the values used by Compose itself as well as the containers. [Docker documents this environment-file behavior here](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/). Your actual `.env` file is excluded from Git.
-
-### 4. Build and start the app
-
-Run this from the root project folder:
+Start it again without rebuilding:
 
 ```bash
-docker compose --env-file backend/.env -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+docker compose up -d
 ```
 
-This builds the frontend and backend, starts PostgreSQL, and waits for database/API readiness before starting dependent services. Database tables initialize automatically. You do not need to run `setup.sh`, `start.sh`, a separate image-build command, or manual SQL migrations.
+Race data is stored in a Docker volume and survives a normal stop, restart or image rebuild. **Do not use `docker compose down -v` if you want to keep race data.**
 
-Check the services:
+## Get an update
 
-```bash
-docker compose --env-file backend/.env -f docker-compose.yml -f docker-compose.prod.yml ps
-```
-
-The services are `db`, `backend`, and `frontend`. Allow time for the health checks to turn healthy, then open:
-
-- **Application:** [http://localhost:3000](http://localhost:3000)
-- **API documentation:** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Database readiness:** [http://localhost:8000/api/ready](http://localhost:8000/api/ready)
-
-A ready API returns `{"status":"ok"}`. A database outage returns HTTP 503 from `/api/ready`; `/api/live` checks the API process separately.
-
-### 5. Start using it
-
-1. Create a session using **New Session**, or load an existing one.
-2. Enter the kart number(s), infringement, observer and penalty, then log the entry.
-3. Apply pending penalties after they have been served.
-4. Use the log to search, edit and inspect records. Export/import sessions from Session Management.
-
-Session databases are separate. Existing sessions receive additive schema updates on first load. Warning corrections recalculate the affected cycle; served penalties stay served and can be flagged for review. Deleted incidents remain in audit/export data.
-
-## Stop, restart and update
-
-Stop the app while retaining its race data:
+From the project folder:
 
 ```bash
-docker compose --env-file backend/.env -f docker-compose.yml -f docker-compose.prod.yml down
-```
-
-Start it again:
-
-```bash
-docker compose --env-file backend/.env -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
-
-To install a newer version, back up event data first. Also copy `backend/.env` to a safe location outside the repository before pulling: older versions tracked that file, while this version uses an untracked local file. Then run:
-
-```bash
-cp backend/.env ../racelith-env-backup.env
 git pull --ff-only
-cp -n ../racelith-env-backup.env backend/.env
-docker compose --env-file backend/.env -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+docker compose build
+docker compose up -d
 ```
 
-The rebuild is needed after code or frontend configuration changes. PostgreSQL data lives in a named Docker volume and survives normal container rebuilds and `down`. **Do not add `-v` to `down` when you want to keep race data.**
+Back up event data before updating an installation that contains real race records. Keep the same project folder so Compose continues using the same database volume.
 
-A full database backup while the database container is running:
+If you pulled the temporary documentation commit that removed `backend/.env`, pulling the current version restores the original file. Existing custom installations should retain the database credentials their current volume uses.
+
+## Check whether it is running
 
 ```bash
-docker compose --env-file backend/.env -f docker-compose.yml -f docker-compose.prod.yml exec -T db sh -c 'pg_dumpall -U "$POSTGRES_USER"' > ../racelith-backup.sql
+docker compose ps
 ```
 
-This writes a backup outside the repository containing the control database and all race databases. Copy it to a safe location. Restore procedures should be verified on a disposable instance before using an event backup.
-
-## Use another computer or phone on the same network
-
-Keep the app running on the host computer. Add that computer's browser URL to `CORS_ORIGINS` in `backend/.env`. For example, if its LAN address is `192.168.1.20`:
-
-```dotenv
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://192.168.1.20:3000
-```
-
-Apply the configuration with the build/start command, then open `http://192.168.1.20:3000` on the other device. With the localhost API default, the frontend uses the host you opened and backend port 8000. Both ports must be reachable through the host firewall. LAN addresses can change, so use the host's current address.
-
-For a public server, configure the browser-accessible API URL, matching CORS origins and HTTPS separately. The supplied Nginx configuration serves the frontend; it does not provide an HTTPS certificate or an API reverse proxy.
-
-## Troubleshooting
-
-View service logs:
+The services are `db`, `backend` and `frontend`. View their logs with:
 
 ```bash
-docker compose --env-file backend/.env -f docker-compose.yml -f docker-compose.prod.yml logs --tail=100 backend frontend db
+docker compose logs --tail=100 backend frontend db
 ```
 
-- **Cannot connect to the Docker daemon:** start Docker Desktop/the Docker service, then retry.
-- **Environment file missing:** create `backend/.env` using the supplied template.
-- **Port already allocated:** stop the application using that port. The default browser/API configuration expects ports 3000 and 8000.
-- **Backend unhealthy or database connection failed:** check the database credentials and backend logs. Preserve the existing volume; recreating containers does not reset its credentials.
-- **No active session:** create or load a session first.
-- **Browser cannot reach the API:** check `http://localhost:8000/api/ready`, the API URL and CORS settings. On another device, use the host computer's address.
-- **Production override fails to parse:** upgrade Compose to version 2.24.4 or newer.
+- **Docker daemon unavailable:** open Docker Desktop/start the Docker service, then retry.
+- **Port already allocated:** close the application using port 3000 or 8000, then retry.
+- **Services still starting:** wait for health checks to become healthy and inspect the logs above if they fail.
+- **No active session:** create or load a session in the app.
 
-## Optional: run the frontend and backend directly for development
+Additional URLs:
 
-Use **Python 3.12**, **Node.js 20+**, and PostgreSQL. The backend database user must be able to create and drop race databases. Docker-only users can skip this section.
+- API documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Database readiness: [http://localhost:8000/api/ready](http://localhost:8000/api/ready)
 
-To use Docker just for PostgreSQL, create `backend/.env` as above and run the base file, which publishes database port 5432:
+## Use another device on the same network
+
+Keep the app running on the host computer and open `http://HOST_COMPUTER_IP:3000` on the other device. For example: `http://192.168.1.20:3000`. The frontend uses that host's API on port 8000. Both ports must be reachable through the host firewall. Only the host needs Docker; other devices use a browser.
+
+## Optional deployment override
+
+The normal two-command startup above is sufficient for the supplied setup. For the extra logging and backup mount configuration, use Docker Compose **2.24.4 or newer** and run:
 
 ```bash
-docker compose --env-file backend/.env -f docker-compose.yml up -d db
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
-In a terminal at the project root on macOS/Linux:
-
-```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install pip==26.2.1
-python -m pip install -r backend/requirements.lock
-cd backend
-DATABASE_URL=postgresql://racelith_user:YOUR_DATABASE_PASSWORD@127.0.0.1:5432/racelith_db python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-```
-
-Replace `YOUR_DATABASE_PASSWORD` with the password from `backend/.env`. Native Python connects to `127.0.0.1`; `db` is the hostname used inside Docker. If you changed the database username, name or port, use those values too.
-
-In a second terminal at the project root:
-
-```bash
-cd frontend
-npm ci
-npm run dev -- --host 127.0.0.1
-```
-
-Open [http://localhost:3000](http://localhost:3000). Use `npm ci` to install the pinned dependency graph even if the checkout already contains a `node_modules` folder.
-
-For source checks and a frontend build:
-
-```bash
-npm run typecheck
-npm run build
-```
-
-Use `Ctrl+C` in each terminal to stop the native frontend/API. Stop the database with:
-
-```bash
-docker compose --env-file backend/.env -f docker-compose.yml down
-```
+For a public server, configure HTTPS, a browser-accessible API URL and access controls separately. The supplied Nginx configuration serves the frontend; it does not provide an HTTPS certificate or an API reverse proxy.
 
 ## Verification and scope
 
-The non-authentication fixes passed **132 behavioral regression/E2E assertions**, plus frontend type checking and a production frontend build. Tests used real Chrome, FastAPI, Python 3.12 and disposable PostgreSQL 17 databases. Dependency scans reported zero known advisories in the tested pinned graphs.
+The non-authentication fixes passed **132 behavioral regression/E2E assertions**, frontend type checking and a production frontend build. Tests used real Chrome, FastAPI, Python 3.12 and disposable PostgreSQL 17 databases. Dependency scans reported zero known advisories in the tested pinned graphs.
 
 See [the fix report](audit/FIX_REPORT.txt), [combined results](audit/fixed-results.json), and [the original audit](audit/AUDIT_REPORT.txt).
 
-The Docker configuration was checked, but a complete container build/runtime was not executed because the Docker daemon was unavailable during verification. Compose uses PostgreSQL 15; its container runtime remains unverified. Authentication and operator authorization are deliberately deferred, so the application is not established as safe for unrestricted public access.
+The simplified Docker setup was checked using the included environment file, including matching database credentials and internal-only database networking. A complete container build/runtime remains unverified because Docker was not running during verification. The Compose database image uses PostgreSQL 15. Authentication and operator authorization remain deferred.
 
-Regression scripts under `audit/` are for a disposable test instance only. They create sessions, mutate data, inject database failures and, in the fault suite, modify the test cluster's template database. Never run them against an event or shared PostgreSQL server.
+The original environment file is deliberately included for the client's preconfigured setup. The optional `backend/.env.example` remains available for developers. For native development, use Python 3.12 with `backend/requirements.lock`, Node.js 20+, and `npm ci` in `frontend`.
+
+Regression scripts under `audit/` are for disposable test instances only. They mutate data and inject database failures; the fault suite also modifies the test cluster's template database. Never run them against an event or shared PostgreSQL server.

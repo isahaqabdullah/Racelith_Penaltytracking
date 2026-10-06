@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Plain docker compose startup works with original env and no --env-file",
+    "status": "PASS",
+    "evidence": {
+      "database_credentials_match": true,
+      "database_host_ports": [],
+      "services": [
+        "db",
+        "backend",
+        "frontend"
+      ]
+    }
+  },
+  {
+    "name": "Optional deployment override works with original env and no --env-file",
+    "status": "PASS",
+    "evidence": {
+      "database_credentials_match": true,
+      "database_host_ports": [],
+      "services": [
+        "db",
+        "backend",
+        "frontend"
+      ]
+    }
+  },
+  {
+    "name": "Original client environment preserved byte-for-byte",
+    "status": "PASS"
+  }
+]

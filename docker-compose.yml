@@ -5,16 +5,12 @@ services:
     restart: always
     env_file:
       - ./backend/.env
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-racelith_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-CHANGE_THIS_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-racelith_db}
-    ports:
-      - "${DB_PORT:-5432}:5432"
+    # Credentials come directly from the included backend/.env.
+    # PostgreSQL stays inside the Docker network.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-racelith_user} -d ${POSTGRES_DB:-racelith_db}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +24,6 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://racelith_user:CHANGE_THIS_PASSWORD@db:5432/racelith_db}
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
       ENVIRONMENT: ${ENVIRONMENT:-production}
     depends_on:
